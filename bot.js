@@ -1,6 +1,9 @@
 require('dotenv').config();
 const fs = require('fs');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
+
+// Prefix yang dipakai
+const prefixes = ['!', '$', '/'];
 
 // Inisialisasi client
 const client = new Client({
@@ -14,9 +17,8 @@ const client = new Client({
 // Map untuk menyimpan semua command
 client.commands = new Map();
 
-// Load command dari folder commands
+// Load semua command dari folder commands
 const commandFolders = fs.readdirSync('./commands');
-
 for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(f => f.endsWith('.js'));
     for (const file of commandFiles) {
@@ -29,17 +31,25 @@ for (const folder of commandFolders) {
 // Event: bot siap
 client.once('ready', () => {
     console.log(`Bot aktif sebagai ${client.user.tag}`);
-    client.user.setActivity('With ScarilyId Group', { type: 'WATCHING' });
+
+    // Set initial activity
+    client.user.setActivity('With ScarilyId Group', { type: ActivityType.Watching });
+
+    // Refresh setiap 10 menit supaya status tetap muncul
     setInterval(() => {
-        client.user.setActivity('With ScarilyId Group', { type: 'WATCHING' });
-    }, 600000); // refresh setiap 10 menit
+        client.user.setActivity('With ScarilyId Group', { type: ActivityType.Watching });
+    }, 600000);
 });
 
 // Event: saat ada pesan masuk
 client.on('messageCreate', async (message) => {
-    if (!message.content.startsWith('$') || message.author.bot) return;
+    if (message.author.bot) return;
 
-    const args = message.content.slice(1).trim().split(/ +/);
+    // Cek prefix yang digunakan
+    const usedPrefix = prefixes.find(p => message.content.startsWith(p));
+    if (!usedPrefix) return;
+
+    const args = message.content.slice(usedPrefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
     const command = client.commands.get(commandName);
     if (!command) return;
@@ -55,7 +65,7 @@ client.on('messageCreate', async (message) => {
 // Login pakai token dari environment
 const TOKEN = process.env.TOKEN;
 if (!TOKEN) {
-    console.error('ERROR: TOKEN Discord tidak ditemukan!');
+    console.error('ERROR: TOKEN Discord tidak ditemukan! Masukkan di .env atau Railway Environment Variables');
     process.exit(1);
 }
 
