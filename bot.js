@@ -1,79 +1,73 @@
 require('dotenv').config();
-const { Client, Collection, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { Client, Collection, GatewayIntentBits, ActivityType } = require('discord.js');
 
-// ------------------ CLIENT ------------------
-const client = new Client({ 
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] 
-});
+const prefix = "$";
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// ------------------ LOAD COMMANDS ------------------
+// Load semua command
 client.commands = new Collection();
-const commandFolders = ['commands/fun', 'commands/moderation', 'commands/utility'];
-
-console.log("Loading commands...");
+const commandFolders = ['fun', 'moderation', 'utility'];
 for (const folder of commandFolders) {
-    const fullFolderPath = path.join(__dirname, folder);
-    if (!fs.existsSync(fullFolderPath)) continue;
-
-    const files = fs.readdirSync(fullFolderPath).filter(f => f.endsWith('.js'));
-    for (const file of files) {
-        const filePath = path.join(fullFolderPath, file);
-        try {
-            const command = require(filePath);
-
-            if (!command.name || !command.execute) {
-                console.warn(`⚠️ Command ${file} missing properties, skipped.`);
-                continue;
-            }
-
-            client.commands.set(command.name.toLowerCase(), command);
-            console.log(`✅ Loaded command: ${command.name} from ${folder}`);
-        } catch (error) {
-            console.error(`❌ Failed to load command ${file}:`, error.message);
-        }
+    const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(f => f.endsWith('.js'));
+    for (const file of commandFiles) {
+        const command = require(`./commands/${folder}/${file}`);
+        if (command.name) client.commands.set(command.name, command);
     }
 }
 
-// ------------------ READY EVENT ------------------
+// Ready event
 client.once('ready', () => {
     console.log(`${client.user.tag} is online!`);
 
-    const updateWatching = () => {
-        const serverCount = client.guilds.cache.size;
-        client.user.setActivity(`ScarilyId Group | ${serverCount} Servers`, { type: 'WATCHING' });
-        console.log(`👀 Watching updated: ScarilyId Group | ${serverCount} Servers`);
-    };
+    const activities = [
+        "ScarilyId Group",
+        "ScarilyId Hosting",
+        "ScarilyId Bot",
+        "Watching Servers",
+    ];
+    let i = 0;
 
-    updateWatching();
-    setInterval(updateWatching, 600000); // update tiap 10 menit
+    // Set interval untuk ganti-ganti status
+    setInterval(() => {
+        client.user.setActivity(activities[i % activities.length], { type: ActivityType.Playing });
+        i++;
+    }, 3000); // 3 detik
 });
 
-// ------------------ PREFIX COMMAND HANDLER ------------------
-client.on('messageCreate', message => {
-    if (message.author.bot) return;
-
-    const prefixes = ['!', '$'];
-    const prefixUsed = prefixes.find(p => message.content.startsWith(p));
-    if (!prefixUsed) return;
-
-    const args = message.content.slice(prefixUsed.length).trim().split(/ +/);
-    const cmdName = args.shift().toLowerCase();
-    const command = client.commands.get(cmdName);
-
+// Slash command
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+    const command = client.commands.get(interaction.commandName);
     if (!command) return;
-
     try {
-        command.execute(message, args, client);
-        console.log(`🟢 Executed command: ${command.name} by ${message.author.tag}`);
-    } catch (error) {
-        console.error(`❌ Error executing command ${command.name}:`, error.message);
-        message.reply("⚠️ Terjadi error saat menjalankan command!");
+        await command.execute(interaction);
+    } catch (err) {
+        console.error('❌ Error executing command', err);
+        await interaction.reply({ content: '❌ Error executing command', ephemeral: true });
     }
 });
 
-// ------------------ LOGIN ------------------
-client.login(process.env.TOKEN).catch(err => {
-    console.error("❌ Failed to login. Periksa TOKEN di .env", err.message);
+// Prefix command
+client.on('messageCreate', async message => {
+    if (!message.content.startsWith(prefix) || message.author.bot) return;
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const cmdName = args.shift().toLowerCase();
+    const command = client.commands.get(cmdName);
+    if (!command) return;
+    try {
+        await command.execute(message);
+    } catch (err) {
+        console.error(err);
+        message.reply('❌ Error executing command');
+    }
 });
+
+// Login bot
+if (!process.env.DISCORD_TOKEN) {
+    console.error("❌ Token tidak ditemukan. Gunakan: export DISCORD_TOKEN='TOKEN_BOT'");
+    process.exit(1);
+}
+
+client.login(process.env.DISCORD_TOKEN);

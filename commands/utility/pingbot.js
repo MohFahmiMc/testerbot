@@ -1,7 +1,13 @@
 module.exports = {
     name: "pingbot",
-    description: "Menampilkan ping bot",
-    execute(message, args, client) {
-        message.channel.send(`Ping bot: ${client.ws.ping}ms`);
+    description: "Check bot latency",
+    options: [],
+    async execute(interaction) {
+        const ping = Math.round(client.ws.ping);
+        if (interaction.isChatInputCommand()) {
+            await interaction.reply(`Bot latency: ${ping}ms`);
+        } else {
+            interaction.channel.send(`Bot latency: ${ping}ms`);
+        }
     }
 };

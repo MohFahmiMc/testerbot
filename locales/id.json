@@ -1,0 +1,9 @@
+{
+  "help_title": "Daftar Command",
+  "help_desc": "Berikut semua command yang tersedia",
+  "say_usage": "Gunakan: !say <teks>",
+  "say_reply": "Kamu berkata: {text}",
+  "error_msg": "Terjadi error saat menjalankan command!",
+  "lang_set": "Bahasa diubah ke Bahasa Indonesia",
+  "lang_list": "Bahasa yang tersedia: en, id"
+}

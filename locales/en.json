@@ -1,0 +1,9 @@
+{
+  "help_title": "Command List",
+  "help_desc": "Here are all available commands",
+  "say_usage": "Usage: !say <text>",
+  "say_reply": "You said: {text}",
+  "error_msg": "An error occurred while executing the command!",
+  "lang_set": "Language set to English",
+  "lang_list": "Supported languages: en, id"
+}

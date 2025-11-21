@@ -1,8 +1,13 @@
 module.exports = {
-    name: 'avatar',
-    description: 'Tampilkan avatar user',
-    async execute(message, args){
-        const member = message.mentions.members.first() || message.member;
-        message.channel.send(`${member.user.tag}'s avatar: ${member.user.displayAvatarURL({ dynamic: true, size: 1024 })}`);
+    name: "avatar",
+    description: "Get a user's avatar",
+    options: [
+        { name: "user", type: 6, description: "User to get avatar for", required: false }
+    ],
+    async execute(interaction) {
+        const user = interaction.isChatInputCommand() ? 
+            interaction.options.getUser("user") || interaction.user :
+            interaction.mentions.users.first() || interaction.author;
+        await interaction.reply(user.displayAvatarURL({ dynamic: true, size: 1024 }));
     }
 };

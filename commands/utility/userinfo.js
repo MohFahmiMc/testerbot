@@ -1,8 +1,13 @@
 module.exports = {
-    name: 'userinfo',
-    description: 'Tampilkan info user',
-    async execute(message, args){
-        const member = message.mentions.members.first() || message.member;
-        message.channel.send(`Nama: ${member.user.tag}\nID: ${member.id}\nJoined: ${member.joinedAt}`);
+    name: "userinfo",
+    description: "Get info about a user",
+    options: [
+        { name: "user", type: 6, description: "User to get info for", required: false }
+    ],
+    async execute(interaction) {
+        const user = interaction.isChatInputCommand() ? 
+            interaction.options.getUser("user") || interaction.user :
+            interaction.mentions.users.first() || interaction.author;
+        await interaction.reply(`User: ${user.tag}\nID: ${user.id}`);
     }
 };

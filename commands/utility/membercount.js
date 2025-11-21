@@ -1,7 +1,13 @@
 module.exports = {
     name: "membercount",
-    description: "Menampilkan jumlah member server",
-    execute(message, args, client) {
-        message.channel.send(`Jumlah member di server: ${message.guild.memberCount}`);
+    description: "Show total members in server",
+    options: [],
+    async execute(interaction) {
+        const count = interaction.guild.members.cache.size;
+        if (interaction.isChatInputCommand()) {
+            await interaction.reply(`Total members: ${count}`);
+        } else {
+            interaction.channel.send(`Total members: ${count}`);
+        }
     }
 };
