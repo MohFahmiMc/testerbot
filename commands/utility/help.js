@@ -1,25 +1,42 @@
+const { EmbedBuilder } = require('discord.js');
+
 module.exports = {
-    name: 'help',
-    description: 'Menampilkan semua command yang tersedia',
-    category: 'Utility',
-    async execute(message, args) {
-        const { client } = message;
-
-        // Mengelompokkan command berdasarkan kategori
+    name: "help",
+    description: "Menampilkan semua command yang tersedia",
+    execute(message, args, client) {
+        // Ambil semua command, kelompokkan per kategori
         const categories = {};
-
         client.commands.forEach(cmd => {
-            const folder = cmd.category || "Other";
-            if (!categories[folder]) categories[folder] = [];
-            categories[folder].push(cmd.name);
+            const category = cmd.category || "Other";
+            if (!categories[category]) categories[category] = [];
+            categories[category].push(cmd.name);
         });
 
-        let reply = "**Daftar Command Bot:**\n\n";
+        // Buat embed
+        const embed = new EmbedBuilder()
+            .setTitle("📜 Daftar Command")
+            .setColor("#0099ff")
+            .setFooter({ text: `Server: ${message.guild.name}`, iconURL: message.guild.iconURL() || undefined })
+            .setTimestamp();
+
+        // Tambahkan field per kategori
         for (const [category, cmds] of Object.entries(categories)) {
-            reply += `__${category}__\n`;
-            reply += cmds.map(c => `\`${c}\``).join(", ") + "\n\n";
+            embed.addFields({ name: category, value: cmds.map(c => `\`${c}\``).join(", "), inline: false });
         }
 
-        message.channel.send(reply);
+        // Prefix info
+        embed.addFields({
+            name: "Prefix yang bisa dipakai",
+            value: "`!`, `$`, `/`",
+            inline: false
+        });
+
+        embed.addFields({
+            name: "Cara pakai",
+            value: "Gunakan `<prefix><command>` contoh: `!ping`, `$ping`, `/ping`",
+            inline: false
+        });
+
+        message.channel.send({ embeds: [embed] });
     }
 };

@@ -1,72 +1,53 @@
 require('dotenv').config();
+const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
-const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
 
-// Prefix yang dipakai
-const prefixes = ['!', '$', '/'];
+// Create client
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// Inisialisasi client
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
+// ------------------ LOAD COMMANDS ------------------
+client.commands = new Collection();
+const commandFiles = fs.readdirSync('./commands').filter(f => f.endsWith('.js'));
 
-// Map untuk menyimpan semua command
-client.commands = new Map();
-
-// Load semua command dari folder commands
-const commandFolders = fs.readdirSync('./commands');
-for (const folder of commandFolders) {
-    const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(f => f.endsWith('.js'));
-    for (const file of commandFiles) {
-        const command = require(`./commands/${folder}/${file}`);
-        command.category = folder.charAt(0).toUpperCase() + folder.slice(1);
-        client.commands.set(command.name, command);
-    }
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    client.commands.set(command.name, command);
 }
 
-// Event: bot siap
+// ------------------ READY EVENT ------------------
 client.once('ready', () => {
-    console.log(`Bot aktif sebagai ${client.user.tag}`);
+    console.log(`${client.user.tag} is online!`);
 
-    // Set initial activity
-    client.user.setActivity('With ScarilyId Group', { type: ActivityType.Watching });
+    // Status Watching ScarilyId Group + jumlah server
+    const updateWatching = () => {
+        const serverCount = client.guilds.cache.size;
+        client.user.setActivity(`ScarilyId Group | ${serverCount} Servers`, { type: 'WATCHING' });
+    };
 
-    // Refresh setiap 10 menit supaya status tetap muncul
-    setInterval(() => {
-        client.user.setActivity('With ScarilyId Group', { type: ActivityType.Watching });
-    }, 600000);
+    updateWatching();
+    setInterval(updateWatching, 600000); // update setiap 10 menit
 });
 
-// Event: saat ada pesan masuk
-client.on('messageCreate', async (message) => {
+// ------------------ PREFIX HANDLER ------------------
+client.on('messageCreate', message => {
     if (message.author.bot) return;
 
-    // Cek prefix yang digunakan
-    const usedPrefix = prefixes.find(p => message.content.startsWith(p));
-    if (!usedPrefix) return;
+    const prefixes = ['!', '$'];
+    const prefixUsed = prefixes.find(p => message.content.startsWith(p));
+    if (!prefixUsed) return;
 
-    const args = message.content.slice(usedPrefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
-    const command = client.commands.get(commandName);
+    const args = message.content.slice(prefixUsed.length).trim().split(/ +/);
+    const cmdName = args.shift().toLowerCase();
+    const command = client.commands.get(cmdName);
     if (!command) return;
 
     try {
-        await command.execute(message, args, client);
+        command.execute(message, args, client);
     } catch (error) {
         console.error(error);
-        message.reply('Terjadi error saat menjalankan command.');
+        message.reply("Terjadi error saat menjalankan command!");
     }
 });
 
-// Login pakai token dari environment
-const TOKEN = process.env.TOKEN;
-if (!TOKEN) {
-    console.error('ERROR: TOKEN Discord tidak ditemukan! Masukkan di .env atau Railway Environment Variables');
-    process.exit(1);
-}
-
-client.login(TOKEN);
+// ------------------ LOGIN ------------------
+client.login(process.env.TOKEN);
