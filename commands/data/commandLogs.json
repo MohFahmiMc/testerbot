@@ -1,1 +1,32 @@
-{}
+[
+    {
+        "user": "mizephyr",
+        "command": "help",
+        "guild": "Menakutkan",
+        "time": "2025-11-21T10:36:20.157Z"
+    },
+    {
+        "user": "mizephyr",
+        "command": "channel",
+        "guild": "Menakutkan",
+        "time": "2025-11-21T10:36:43.499Z"
+    },
+    {
+        "user": "mizephyr",
+        "command": "roles",
+        "guild": "Menakutkan",
+        "time": "2025-11-21T10:37:40.671Z"
+    },
+    {
+        "user": "mizephyr",
+        "command": "zephyrlogcommand",
+        "guild": "Menakutkan",
+        "time": "2025-11-21T10:38:43.248Z"
+    },
+    {
+        "user": "mizephyr",
+        "command": "say",
+        "guild": "Menakutkan",
+        "time": "2025-11-21T10:38:58.766Z"
+    }
+]

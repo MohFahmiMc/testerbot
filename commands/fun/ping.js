@@ -6,6 +6,7 @@ module.exports = {
         .setDescription("Check the bot's latency."),
 
     async execute(interaction) {
+        // Mengirim reply sementara dan mengambil object pesan
         const sent = await interaction.reply({ content: "Pinging...", fetchReply: true });
 
         const botLatency = sent.createdTimestamp - interaction.createdTimestamp;
