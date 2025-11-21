@@ -1,9 +1,8 @@
 require('dotenv').config();
 const fs = require('fs');
-const path = require('path');
 const { Client, Collection, GatewayIntentBits, ActivityType, REST, Routes } = require('discord.js');
 
-const prefix = "$"; // Prefix untuk command
+const prefix = "$"; 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
@@ -42,7 +41,7 @@ client.once('ready', async () => {
         i++;
     }, 3000);
 
-    // Daftar Slash Command otomatis di server (jika mau)
+    // Slash commands global registration
     try {
         const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
         const slashCommands = [];
@@ -55,10 +54,7 @@ client.once('ready', async () => {
                 });
             }
         });
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: slashCommands }
-        );
+        await rest.put(Routes.applicationCommands(client.user.id), { body: slashCommands });
         console.log("✅ Slash commands registered globally");
     } catch (err) {
         console.error("❌ Failed to register slash commands:", err);
@@ -72,7 +68,6 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-
     try {
         await command.execute(interaction);
     } catch (err) {
@@ -103,8 +98,7 @@ client.on('messageCreate', async message => {
 // Login
 // ===========================
 if (!process.env.DISCORD_TOKEN) {
-    console.error("❌ Token not found. Use: export DISCORD_TOKEN='YOUR_BOT_TOKEN'");
+    console.error("❌ Token not found. Set DISCORD_TOKEN as Environment Variable");
     process.exit(1);
 }
-
 client.login(process.env.DISCORD_TOKEN);
