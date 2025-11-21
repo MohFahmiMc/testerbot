@@ -1,10 +1,15 @@
 module.exports = {
     name: "warn",
-    description: "Memberikan peringatan ke member",
+    description: "Memberikan peringatan ke user",
     execute(message, args, client) {
-        const member = message.mentions.members.first();
-        if(!member) return message.reply("Tandai member yang ingin di-warn!");
-        const reason = args.slice(1).join(" ") || "Tidak ada alasan";
-        message.channel.send(`${member.user.tag} telah di-warn. Alasan: ${reason}`);
+        // Ambil user yang di-mention
+        const user = message.mentions.users.first();
+        if (!user) return message.reply("Tag user yang ingin diwarn!");
+
+        // Ambil alasan, jika ada
+        const reason = args.slice(1).join(" ") || "Tidak ada alasan diberikan";
+
+        // Kirim pesan warn
+        message.channel.send(`⚠️ ${user.tag} telah diwarn!\nAlasan: ${reason}`);
     }
 };
