@@ -1,13 +1,12 @@
 module.exports = {
-    name: "pingbot",
-    description: "Check bot latency",
-    options: [],
-    async execute(interaction) {
-        const ping = Math.round(client.ws.ping);
-        if (interaction.isChatInputCommand()) {
-            await interaction.reply(`Bot latency: ${ping}ms`);
-        } else {
-            interaction.channel.send(`Bot latency: ${ping}ms`);
+    name: 'pingbot',
+    description: 'Check bot latency and info',
+    async execute(interactionOrMessage, args, client) { // <-- terima client
+        if (interactionOrMessage.isChatInputCommand?.()) {
+            await interactionOrMessage.reply(`Bot is online! Name: ${client.user.tag}`);
+            return;
         }
+        // Prefix command
+        await interactionOrMessage.reply(`Bot is online! Name: ${client.user.tag}`);
     }
 };
