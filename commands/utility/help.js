@@ -1,42 +1,52 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = {
-    name: "help",
-    description: "Menampilkan semua command yang tersedia",
-    execute(message, args, client) {
-        // Ambil semua command, kelompokkan per kategori
-        const categories = {};
-        client.commands.forEach(cmd => {
-            const category = cmd.category || "Other";
-            if (!categories[category]) categories[category] = [];
-            categories[category].push(cmd.name);
-        });
+    data: new SlashCommandBuilder()
+        .setName("help")
+        .setDescription("Show the list of all available commands"),
 
-        // Buat embed
-        const embed = new EmbedBuilder()
-            .setTitle("📜 Daftar Command")
-            .setColor("#0099ff")
-            .setFooter({ text: `Server: ${message.guild.name}`, iconURL: message.guild.iconURL() || undefined })
-            .setTimestamp();
+    async execute(interaction) {
+        const commandsPath = path.join(__dirname, "..");
+        const categories = fs.readdirSync(commandsPath);
 
-        // Tambahkan field per kategori
-        for (const [category, cmds] of Object.entries(categories)) {
-            embed.addFields({ name: category, value: cmds.map(c => `\`${c}\``).join(", "), inline: false });
+        let helpText = "";
+
+        for (const category of categories) {
+            const categoryPath = path.join(commandsPath, category);
+            if (!fs.lstatSync(categoryPath).isDirectory()) continue;
+
+            const commandFiles = fs
+                .readdirSync(categoryPath)
+                .filter(file => file.endsWith(".js"));
+
+            if (commandFiles.length === 0) continue;
+
+            helpText += `**${category.toUpperCase()}**\n`;
+
+            for (const file of commandFiles) {
+                const filePath = path.join(categoryPath, file);
+                const cmd = require(filePath);
+
+                if (cmd.data && cmd.data.name) {
+                    helpText += `• **/${cmd.data.name}** — ${cmd.data.description || "No description"}\n`;
+                }
+            }
+
+            helpText += "\n";
         }
 
-        // Prefix info
-        embed.addFields({
-            name: "Prefix yang bisa dipakai",
-            value: "`!`, `$`, `/`",
-            inline: false
-        });
+        const embed = new EmbedBuilder()
+            .setColor("#2B2D31")
+            .setTitle("Command List")
+            .setDescription(helpText || "No commands found.")
+            .setFooter({
+                text: `${interaction.guild.name}`,
+                iconURL: interaction.guild.iconURL() || undefined
+            })
+            .setTimestamp();
 
-        embed.addFields({
-            name: "Cara pakai",
-            value: "Gunakan `<prefix><command>` contoh: `!ping`, `$ping`, `/ping`",
-            inline: false
-        });
-
-        message.channel.send({ embeds: [embed] });
+        return interaction.reply({ embeds: [embed], ephemeral: false });
     }
 };

@@ -1,12 +1,45 @@
-module.exports = {
-    name: "uptime",
-    description: "Menampilkan berapa lama bot berjalan",
-    execute(message, args, client) {
-        const totalSeconds = Math.floor(client.uptime / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
-        message.channel.send(`Bot aktif selama ${hours}h ${minutes}m ${seconds}s`);
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName("uptime")
+        .setDescription("Shows how long the bot has been running."),
+
+    async execute(interaction, client) {
+
+        // Convert ms → D, H, M, S
+        function formatUptime(ms) {
+            let seconds = Math.floor(ms / 1000);
+            let minutes = Math.floor(seconds / 60);
+            let hours = Math.floor(minutes / 60);
+            let days = Math.floor(hours / 24);
+
+            seconds %= 60;
+            minutes %= 60;
+            hours %= 24;
+
+            return {
+                days,
+                hours,
+                minutes,
+                seconds
+            };
+        }
+
+        const uptime = formatUptime(client.uptime);
+
+        const embed = new EmbedBuilder()
+            .setColor("#22c55e")
+            .setTitle("⏳ Bot Uptime")
+            .setDescription(
+                `**The bot has been running for:**\n` +
+                `\`${uptime.days}d ${uptime.hours}h ${uptime.minutes}m ${uptime.seconds}s\``
+            )
+            .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
+            .setFooter({ text: `${interaction.guild.name}` })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+
     }
 };

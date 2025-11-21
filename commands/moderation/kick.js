@@ -1,24 +1,71 @@
+const { 
+    SlashCommandBuilder, 
+    PermissionFlagsBits, 
+    EmbedBuilder 
+} = require("discord.js");
+
 module.exports = {
-    name: "kick",
-    description: "Kick a membern!",
-    options: [
-        { name: "user", type: 6, description: "User to kick", required: true },
-        { name: "reason", type: 3, description: "Reason for kick", required: false }
-    ],
+    data: new SlashCommandBuilder()
+        .setName("kick")
+        .setDescription("Kick a member from the server")
+        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+        .addUserOption(option => 
+            option.setName("user")
+                .setDescription("The user to kick")
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option.setName("reason")
+                .setDescription("Reason for kicking the user")
+                .setRequired(false)
+        ),
+
     async execute(interaction) {
-        const user = interaction.options.getUser("user");
+        const target = interaction.options.getUser("user");
         const reason = interaction.options.getString("reason") || "No reason provided";
 
-        if (!interaction.guild.members.cache.get(user.id)) {
-            return interaction.reply({ content: "User not found in this server.", ephemeral: true });
+        const member = interaction.guild.members.cache.get(target.id);
+
+        // Tidak bisa kick bot atau owner
+        if (!member) {
+            return interaction.reply({
+                content: "The selected user is not in this server.",
+                ephemeral: true
+            });
+        }
+
+        if (!member.kickable) {
+            return interaction.reply({
+                content: "I cannot kick this user. They may have a higher role or I lack permissions.",
+                ephemeral: true
+            });
         }
 
         try {
-            await interaction.guild.members.kick(user, reason);
-            await interaction.reply(`✅ Kicked ${user.tag} | Reason: ${reason}`);
+            await member.kick(reason);
+
+            const embed = new EmbedBuilder()
+                .setColor("#2B2D31")
+                .setTitle("Member Kicked")
+                .addFields(
+                    { name: "User", value: `${target.tag}`, inline: true },
+                    { name: "ID", value: `${target.id}`, inline: true },
+                    { name: "Reason", value: reason }
+                )
+                .setFooter({
+                    text: interaction.guild.name,
+                    iconURL: interaction.guild.iconURL() || undefined
+                })
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [embed] });
+
         } catch (err) {
             console.error(err);
-            await interaction.reply({ content: "❌ Failed to kick user.", ephemeral: true });
+            return interaction.reply({
+                content: "Failed to kick the user. Please check my permissions.",
+                ephemeral: true
+            });
         }
     }
 };

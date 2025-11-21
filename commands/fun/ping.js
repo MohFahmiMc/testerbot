@@ -1,13 +1,20 @@
+const { SlashCommandBuilder } = require("discord.js");
+
 module.exports = {
-    name: "ping",
-    description: "Check bot latency",
-    options: [],
+    data: new SlashCommandBuilder()
+        .setName("ping")
+        .setDescription("Check the bot's latency."),
+
     async execute(interaction) {
-        if (interaction.isChatInputCommand()) {
-            await interaction.reply(`🏓 Pong! Latency: ${Date.now() - interaction.createdTimestamp}ms`);
-        } else {
-            const message = interaction;
-            message.reply(`🏓 Pong! Latency: ${Date.now() - message.createdTimestamp}ms`);
-        }
-    }
+        const sent = await interaction.reply({ content: "Pinging...", fetchReply: true });
+
+        const botLatency = sent.createdTimestamp - interaction.createdTimestamp;
+        const apiLatency = interaction.client.ws.ping;
+
+        await interaction.editReply(
+            `🏓 **Pong!**\n` +
+            `Bot latency: **${botLatency}ms**\n` +
+            `API latency: **${apiLatency}ms**`
+        );
+    },
 };

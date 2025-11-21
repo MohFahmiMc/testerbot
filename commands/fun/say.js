@@ -1,17 +1,25 @@
+const { SlashCommandBuilder } = require('discord.js');
+
 module.exports = {
-    name: "say",
-    description: "Bot will repeat your text",
-    options: [
-        { name: "text", type: 3, description: "Text to say", required: true }
-    ],
+    data: new SlashCommandBuilder()
+        .setName('say')
+        .setDescription('Make the bot say something.')
+        .addStringOption(option =>
+            option.setName('message')
+                .setDescription('The message you want the bot to say')
+                .setRequired(true)
+        ),
+
     async execute(interaction) {
-        if (interaction.isChatInputCommand()) {
-            const text = interaction.options.getString("text");
-            await interaction.reply(text);
-        } else {
-            const message = interaction;
-            const args = message.content.split(/ +/).slice(1);
-            await message.channel.send(args.join(" "));
-        }
+        const text = interaction.options.getString('message');
+
+        // Respond to the interaction first
+        await interaction.reply({
+            content: `Message sent!`,
+            ephemeral: true
+        });
+
+        // Send message to channel
+        await interaction.channel.send(text);
     }
 };

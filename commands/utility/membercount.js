@@ -1,13 +1,29 @@
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+
 module.exports = {
-    name: "membercount",
-    description: "Show total members in server",
-    options: [],
+    data: new SlashCommandBuilder()
+        .setName("membercount")
+        .setDescription("Shows total member count of the server."),
+
     async execute(interaction) {
-        const count = interaction.guild.members.cache.size;
-        if (interaction.isChatInputCommand()) {
-            await interaction.reply(`Total members: ${count}`);
-        } else {
-            interaction.channel.send(`Total members: ${count}`);
-        }
+        const { guild } = interaction;
+
+        const totalMembers = guild.memberCount;
+        const bots = guild.members.cache.filter(m => m.user.bot).size;
+        const humans = totalMembers - bots;
+
+        const embed = new EmbedBuilder()
+            .setColor("#3498db")
+            .setTitle("📊 Server Member Count")
+            .setThumbnail(guild.iconURL({ size: 256 }))
+            .addFields(
+                { name: "👥 Total Members", value: `${totalMembers}`, inline: true },
+                { name: "🧑 Humans", value: `${humans}`, inline: true },
+                { name: "🤖 Bots", value: `${bots}`, inline: true }
+            )
+            .setFooter({ text: guild.name })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
     }
 };

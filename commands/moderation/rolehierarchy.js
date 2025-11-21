@@ -1,11 +1,22 @@
+const { EmbedBuilder } = require("discord.js");
+
 module.exports = {
-    name: "rolehierarchy",
-    description: "Menampilkan hierarki role server",
-    execute(message) {
-        const roles = message.guild.roles.cache
-            .filter(r => r.id !== message.guild.id)
-            .sort((a,b)=>b.position - a.position)
-            .map(r => r.name).join(" → ");
-        message.channel.send(`Hierarki roles: ${roles}`);
+    data: {
+        name: "rolehierarchy",
+        description: "Show the server role hierarchy"
+    },
+    async execute(interaction) {
+        const roles = interaction.guild.roles.cache
+            .sort((a, b) => b.position - a.position)
+            .map(role => role.name)
+            .join("\n");
+
+        const embed = new EmbedBuilder()
+            .setTitle("📊 Server Role Hierarchy")
+            .setDescription(roles || "No roles found")
+            .setColor("Blue")
+            .setTimestamp();
+
+        interaction.reply({ embeds: [embed] });
     }
 };

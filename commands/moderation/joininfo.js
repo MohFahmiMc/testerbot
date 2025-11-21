@@ -1,13 +1,46 @@
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+
 module.exports = {
-    name: "joininfo",
-    description: "Menampilkan info join user di server",
-    execute(message, args) {
-        const member = message.mentions.members.first() || message.member;
-        const joinDate = member.joinedAt.toDateString();
-        const position = message.guild.members.cache
-            .sort((a,b) => a.joinedTimestamp - b.joinedTimestamp)
-            .map((m,i) => ({id:m.id, pos:i+1}))
-            .find(m => m.id === member.id).pos;
-        message.channel.send(`${member.user.tag} join pada ${joinDate}, posisi ke-${position} di server`);
+    data: new SlashCommandBuilder()
+        .setName("joininfo")
+        .setDescription("Show information about when a user joined the server")
+        .addUserOption(option =>
+            option.setName("member")
+                  .setDescription("Select a user to view join info")
+                  .setRequired(true)
+        ),
+
+    async execute(interaction) {
+        const user = interaction.options.getUser("member");
+        const member = await interaction.guild.members.fetch(user.id);
+
+        const embed = new EmbedBuilder()
+            .setColor("Blue")
+            .setTitle(`📥 Join Information`)
+            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: "👤 User",
+                    value: `${user.tag}`,
+                    inline: true
+                },
+                {
+                    name: "🆔 User ID",
+                    value: `${user.id}`,
+                    inline: true
+                },
+                {
+                    name: "📅 Joined Server",
+                    value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:F>\n<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`,
+                    inline: false
+                }
+            )
+            .setFooter({
+                text: interaction.guild.name,
+                iconURL: interaction.guild.iconURL() || undefined
+            })
+            .setTimestamp();
+
+        return interaction.reply({ embeds: [embed] });
     }
 };
