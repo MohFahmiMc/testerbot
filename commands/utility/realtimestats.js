@@ -2,46 +2,79 @@ const fs = require("fs");
 const path = require("path");
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
+const statsFile = path.join(__dirname, "../../data/realtimestats.json");
+
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("realtimestats")
-    .setDescription("Set or show real-time stats channel")
-    .addSubcommand(sub =>
-      sub.setName("set")
-         .setDescription("Set the channel to show stats")
-         .addChannelOption(opt => opt.setName("channel").setDescription("Channel for stats").setRequired(true)))
-    .addSubcommand(sub => sub.setName("show").setDescription("Show current server stats")),
+    data: new SlashCommandBuilder()
+        .setName("realtimestats")
+        .setDescription("Manage real-time server & bot stats")
+        .addSubcommand(sub =>
+            sub.setName("set")
+               .setDescription("Set the channel to post real-time stats"))
+        .addSubcommand(sub =>
+            sub.setName("show")
+               .setDescription("Show current stats manually")),
+    
+    async execute(interaction, client) {
+        const ownerId = process.env.OWNER_ID;
+        if (interaction.user.id !== ownerId) {
+            return interaction.reply({ content: "❌ Only the bot owner can use this command.", ephemeral: true });
+        }
 
-  async execute(interaction) {
-    const filePath = path.join(__dirname, "../data/realtimestats.json");
-    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    const subcommand = interaction.options.getSubcommand();
+        const sub = interaction.options.getSubcommand();
+        let statsData = {};
+        try {
+            statsData = JSON.parse(fs.readFileSync(statsFile, "utf8"));
+        } catch (err) {
+            statsData = { channels: {} };
+        }
 
-    if (subcommand === "set") {
-      const channel = interaction.options.getChannel("channel");
-      const existing = data.servers.find(s => s.guild_id === interaction.guild.id);
-      if (existing) {
-        existing.channel_id = channel.id;
-      } else {
-        data.servers.push({ guild_id: interaction.guild.id, channel_id: channel.id });
-      }
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-      return interaction.reply(`✅ Stats channel set to ${channel}`);
+        if (sub === "set") {
+            statsData.channels[interaction.guild.id] = interaction.channel.id;
+            fs.writeFileSync(statsFile, JSON.stringify(statsData, null, 4));
+            return interaction.reply({ content: `✅ This channel is now set for real-time stats!`, ephemeral: true });
+        }
+
+        if (sub === "show") {
+            const embed = new EmbedBuilder()
+                .setTitle("Real-Time Stats")
+                .addFields(
+                    { name: "Server Name", value: interaction.guild.name, inline: true },
+                    { name: "Total Members", value: `${interaction.guild.memberCount}`, inline: true },
+                    { name: "Bot Ping", value: `${client.ws.ping}ms`, inline: true },
+                    { name: "Uptime", value: `${Math.floor(client.uptime / 1000 / 60)} minutes`, inline: true }
+                )
+                .setColor("Blue")
+                .setTimestamp();
+            return interaction.reply({ embeds: [embed] });
+        }
     }
-
-    if (subcommand === "show") {
-      const stats = data.servers.find(s => s.guild_id === interaction.guild.id);
-      if (!stats) return interaction.reply("❌ Stats channel not set yet.");
-      const embed = new EmbedBuilder()
-        .setTitle("Real-Time Stats")
-        .addFields(
-          { name: "Server Name", value: interaction.guild.name, inline: true },
-          { name: "Server ID", value: interaction.guild.id, inline: true },
-          { name: "Member Count", value: `${interaction.guild.memberCount}`, inline: true },
-          { name: "Bot Count", value: `${interaction.guild.members.cache.filter(m => m.user.bot).size}`, inline: true }
-        )
-        .setTimestamp();
-      return interaction.reply({ embeds: [embed] });
-    }
-  },
 };
+
+// Real-Time Interval Sender
+setInterval(async () => {
+    let statsData = {};
+    try {
+        statsData = JSON.parse(fs.readFileSync(statsFile, "utf8"));
+    } catch {}
+    
+    for (const guildId in statsData.channels) {
+        const channelId = statsData.channels[guildId];
+        const guild = client.guilds.cache.get(guildId);
+        const channel = client.channels.cache.get(channelId);
+        if (!guild || !channel) continue;
+
+        const embed = new EmbedBuilder()
+            .setTitle("Real-Time Stats")
+            .addFields(
+                { name: "Server Name", value: guild.name, inline: true },
+                { name: "Total Members", value: `${guild.memberCount}`, inline: true },
+                { name: "Bot Ping", value: `${client.ws.ping}ms`, inline: true },
+                { name: "Uptime", value: `${Math.floor(client.uptime / 1000 / 60)} minutes`, inline: true }
+            )
+            .setColor("Green")
+            .setTimestamp();
+
+        try { await channel.send({ embeds: [embed] }); } catch {}
+    }
+}, 5 * 60 * 1000); // kirim tiap 5 menit
