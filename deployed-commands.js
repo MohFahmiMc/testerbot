@@ -1,46 +1,29 @@
-require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
 const { REST, Routes } = require('discord.js');
-
-const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID;
-
-if (!token || !clientId) {
-    console.error("❌ TOKEN atau CLIENT_ID belum di set di .env");
-    process.exit(1);
-}
+const fs = require('fs');
+require('dotenv').config();
 
 const commands = [];
-const commandsPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(commandsPath);
+const commandFiles = fs.readdirSync('./commands').filter(f => f.endsWith('.js'));
 
-for (const folder of commandFolders) {
-    const folderPath = path.join(commandsPath, folder);
-    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-
-    for (const file of commandFiles) {
-        const command = require(path.join(folderPath, file));
-        if ('data' in command && 'execute' in command) {
-            commands.push(command.data.toJSON());
-        } else {
-            console.log(`❌ Command invalid: ${file}`);
-        }
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    if (command.data?.toJSON) {
+        commands.push(command.data.toJSON());
+    } else {
+        console.log(`❌ Skipped ${file}: data.toJSON not found`);
     }
 }
 
-const rest = new REST({ version: '10' }).setToken(token);
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
     try {
-        console.log(`🚀 Deploying ${commands.length} global commands...`);
-
-        const data = await rest.put(
-            Routes.applicationCommands(clientId),
-            { body: commands }
+        console.log('Started refreshing application (/) commands.');
+        await rest.put(
+            Routes.applicationCommands(process.env.CLIENT_ID), // GLOBAL COMMAND
+            { body: commands },
         );
-
-        console.log(`✅ Successfully deployed ${data.length} global commands.`);
+        console.log('Successfully reloaded application (/) commands.');
     } catch (error) {
         console.error(error);
     }
