@@ -1,79 +1,62 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const fs = require("fs");
-const path = require("path");
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+require('dotenv').config();
 
-const statsFile = path.join(__dirname, "../data/realtimestats.json");
+const OWNER_ID = process.env.OWNER_ID; // Set owner ID di .env
+const PREMIUM_USERS = JSON.parse(fs.readFileSync('./commands/data/premium.json', 'utf8') || '[]');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName("realtimestats")
-        .setDescription("Setup or view server stats (Premium only)")
-        .addSubcommand(sub =>
-            sub.setName("set")
-               .setDescription("Set the channel to post real-time stats")
-               .addChannelOption(option =>
-                   option.setName("channel")
-                         .setDescription("Select the channel")
-                         .setRequired(true)
-               )
-        ),
+        .setName('realtimestats')
+        .setDescription('Show live server and bot stats. (Premium only)'),
+
     async execute(interaction) {
-        const ownerId = process.env.OWNER_ID;
-        const premiumIds = [ownerId]; // Bisa tambah premium user id lain
-
-        if (!premiumIds.includes(interaction.user.id)) {
-            return interaction.reply({ content: "❌ You don't have permission (premium only).", ephemeral: true });
+        // Cek akses premium/owner
+        if (interaction.user.id !== OWNER_ID && !PREMIUM_USERS.includes(interaction.user.id)) {
+            return interaction.reply({ content: '❌ You are not allowed to use this command.', ephemeral: true });
         }
 
-        const subcommand = interaction.options.getSubcommand();
+        const guild = interaction.guild;
+        if (!guild) return interaction.reply({ content: '❌ This command can only be used in a server.', ephemeral: true });
 
-        if (subcommand === "set") {
-            const channel = interaction.options.getChannel("channel");
+        const sent = await interaction.reply({ content: 'Loading live stats...', fetchReply: true });
 
-            // Simpan ke file
-            const data = { channelId: channel.id, serverId: interaction.guild.id };
-            fs.writeFileSync(statsFile, JSON.stringify(data, null, 2));
+        const updateStats = async () => {
+            await guild.members.fetch(); // Pastikan member list ter-update
+            const totalMembers = guild.members.cache.size;
+            const totalBots = guild.members.cache.filter(m => m.user.bot).size;
+            const onlineMembers = guild.members.cache.filter(m => m.presence?.status === 'online').size;
 
-            await interaction.reply({ content: `✅ Real-time stats will be posted in ${channel}`, ephemeral: true });
+            const embed = new EmbedBuilder()
+                .setTitle(`${guild.name} - Live Stats`)
+                .setColor('#808080') // abu-abu
+                .setThumbnail(guild.iconURL({ dynamic: true }))
+                .addFields(
+                    { name: 'Server Name', value: guild.name, inline: true },
+                    { name: 'Total Members', value: totalMembers.toString(), inline: true },
+                    { name: 'Online Members', value: onlineMembers.toString(), inline: true },
+                    { name: 'Total Bots', value: totalBots.toString(), inline: true },
+                    { name: 'Server Owner', value: `<@${guild.ownerId}>`, inline: true },
+                    { name: 'Bot Join Date', value: `<t:${Math.floor(interaction.client.user.createdTimestamp / 1000)}:R>`, inline: true }
+                )
+                .setFooter({ text: 'Live stats powered by your bot', iconURL: interaction.client.user.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
 
-            setInterval(async () => {
-                const guild = interaction.client.guilds.cache.get(data.serverId);
-                if (!guild) return;
+            try {
+                await sent.edit({ embeds: [embed] });
+            } catch (err) {
+                console.error('Failed to update stats:', err);
+            }
+        };
 
-                const statsChannel = guild.channels.cache.get(data.channelId);
-                if (!statsChannel) return;
+        // Update setiap 5 detik
+        const interval = setInterval(updateStats, 5000);
 
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Server Stats - ${guild.name}`)
-                    .setColor("#808080") // abu-abu
-                    .setThumbnail(guild.iconURL({ dynamic: true })) // server icon atas kanan
-                    .addFields(
-                        { name: "Total Members", value: `${guild.members.cache.size}`, inline: true },
-                        { name: "Total Bots", value: `${guild.members.cache.filter(m => m.user.bot).size}`, inline: true },
-                        { name: "Server Owner", value: `<@${guild.ownerId}>`, inline: true },
-                        { name: "Server ID", value: `${guild.id}`, inline: true }
-                    )
-                    .setFooter({
-                        text: "Real-time stats",
-                        iconURL: interaction.client.user.displayAvatarURL({ dynamic: true }) // foto bot di footer
-                    })
-                    .setTimestamp();
+        // Hentikan interval jika message dihapus
+        const collector = sent.channel.createMessageComponentCollector({ time: 60 * 60 * 1000 }); // 1 jam
+        collector.on('end', () => clearInterval(interval));
 
-                // Cari message terakhir atau kirim baru
-                let messages = await statsChannel.messages.fetch({ limit: 10 });
-                let botMessage = messages.find(msg => 
-                    msg.author.id === interaction.client.user.id && 
-                    msg.embeds.length > 0 && 
-                    msg.embeds[0].title.includes("Server Stats")
-                );
-                
-                if (botMessage) {
-                    await botMessage.edit({ embeds: [embed] });
-                } else {
-                    await statsChannel.send({ embeds: [embed] });
-                }
-
-            }, 5000); // update tiap 5 detik
-        }
-    }
+        // Jalankan pertama kali
+        updateStats();
+    },
 };
