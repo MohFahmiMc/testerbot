@@ -1,108 +1,41 @@
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  InteractionType,
-} = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("color")
-    .setDescription("Preview embed dengan warna pilihan, termasuk custom hex!"),
+    data: new SlashCommandBuilder()
+        .setName("color")
+        .setDescription("Pick a color and show its hex code."),
 
-  async execute(interaction) {
-    // Tombol preset
-    const colors = [
-      { name: "Red", hex: "#FF0000", style: ButtonStyle.Danger },
-      { name: "Blue", hex: "#0000FF", style: ButtonStyle.Primary },
-      { name: "Green", hex: "#00FF00", style: ButtonStyle.Success },
-      { name: "Yellow", hex: "#FFFF00", style: ButtonStyle.Secondary },
-      { name: "Purple", hex: "#800080", style: ButtonStyle.Secondary },
-      { name: "Custom Hex", hex: "custom", style: ButtonStyle.Secondary }
-    ];
+    async execute(interaction) {
+        const colors = [
+            { label: "Red", value: "#FF0000" },
+            { label: "Green", value: "#00FF00" },
+            { label: "Blue", value: "#0000FF" },
+            { label: "Random", value: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')}` }
+        ];
 
-    // Embed default
-    const embed = new EmbedBuilder()
-      .setTitle("Color Preview")
-      .setDescription("Pilih preset tombol atau input custom hex.")
-      .setColor("#808080");
+        const buttons = new ActionRowBuilder();
+        colors.forEach(c => {
+            buttons.addComponents(new ButtonBuilder()
+                .setCustomId(c.value)
+                .setLabel(c.label)
+                .setStyle(ButtonStyle.Primary));
+        });
 
-    const row = new ActionRowBuilder();
-    colors.forEach(c => {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`color_${c.hex.replace("#", "")}`)
-          .setLabel(c.name)
-          .setStyle(c.style)
-      );
-    });
+        const embed = new EmbedBuilder()
+            .setTitle("Color Picker")
+            .setDescription("Click a button to see the color.")
+            .setColor("#ffffff");
 
-    const msg = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+        const msg = await interaction.reply({ embeds: [embed], components: [buttons], fetchReply: true });
 
-    const collector = msg.createMessageComponentCollector({ time: 180000 }); // 3 menit
-
-    collector.on("collect", async i => {
-      if (i.user.id !== interaction.user.id)
-        return i.reply({ content: "Ini bukan untukmu!", ephemeral: true });
-
-      if (i.customId === "color_custom") {
-        // Modal input
-        const modal = new ModalBuilder()
-          .setCustomId("color_modal")
-          .setTitle("Masukkan Hex Color")
-          .addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId("customHex")
-                .setLabel("Hex color (contoh: #FF5733)")
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-            )
-          );
-        await i.showModal(modal);
-        return;
-      }
-
-      const hex = "#" + i.customId.split("_")[1];
-      const newEmbed = EmbedBuilder.from(embed).setColor(hex).setDescription(`Warna dipilih: **${hex}**`);
-      await i.update({ embeds: [newEmbed] });
-    });
-
-    // Modal interaction
-    interaction.client.on("interactionCreate", async modalInteraction => {
-      if (modalInteraction.type !== InteractionType.ModalSubmit) return;
-      if (modalInteraction.customId !== "color_modal") return;
-      if (modalInteraction.user.id !== interaction.user.id) return;
-
-      const hexInput = modalInteraction.fields.getTextInputValue("customHex").trim();
-      // Validasi hex
-      const isValidHex = /^#([0-9A-F]{6})$/i.test(hexInput);
-      if (!isValidHex) {
-        return modalInteraction.reply({ content: "Hex tidak valid! Gunakan format #RRGGBB", ephemeral: true });
-      }
-
-      const newEmbed = EmbedBuilder.from(embed).setColor(hexInput).setDescription(`Warna dipilih: **${hexInput}**`);
-      await modalInteraction.update({ embeds: [newEmbed] });
-    });
-
-    collector.on("end", async () => {
-      // disable semua tombol setelah habis waktu
-      const disabledRow = new ActionRowBuilder();
-      colors.forEach(c => {
-        disabledRow.addComponents(
-          new ButtonBuilder()
-            .setCustomId(`color_${c.hex.replace("#", "")}`)
-            .setLabel(c.name)
-            .setStyle(c.style)
-            .setDisabled(true)
-        );
-      });
-      await msg.edit({ components: [disabledRow] });
-    });
-  },
+        const collector = msg.createMessageComponentCollector({ time: 60000 });
+        collector.on("collect", i => {
+            const colorHex = i.customId;
+            const colorEmbed = new EmbedBuilder()
+                .setTitle(`Selected Color: ${colorHex}`)
+                .setColor(colorHex)
+                .setDescription(`Hex code: \`${colorHex}\``);
+            i.update({ embeds: [colorEmbed] });
+        });
+    }
 };
