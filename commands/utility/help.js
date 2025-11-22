@@ -1,52 +1,79 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const fs = require("fs");
-const path = require("path");
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Show the list of all available commands"),
+        .setDescription("Show all commands with pagination"),
 
     async execute(interaction) {
-        const commandsPath = path.join(__dirname, "..");
-        const categories = fs.readdirSync(commandsPath);
+        const commands = interaction.client.commands.map(cmd => ({
+            name: cmd.data.name,
+            description: cmd.data.description || "No description"
+        }));
 
-        let helpText = "";
+        const pageSize = 5; // Jumlah command per page
+        let page = 0;
 
-        for (const category of categories) {
-            const categoryPath = path.join(commandsPath, category);
-            if (!fs.lstatSync(categoryPath).isDirectory()) continue;
+        const generateEmbed = (page) => {
+            const embed = new EmbedBuilder()
+                .setTitle("Bot Commands")
+                .setColor("#00FFFF")
+                .setFooter({ text: `Page ${page + 1} of ${Math.ceil(commands.length / pageSize)}` });
 
-            const commandFiles = fs
-                .readdirSync(categoryPath)
-                .filter(file => file.endsWith(".js"));
+            const start = page * pageSize;
+            const current = commands.slice(start, start + pageSize);
 
-            if (commandFiles.length === 0) continue;
+            current.forEach(cmd => {
+                embed.addFields({ name: `/${cmd.name}`, value: cmd.description });
+            });
 
-            helpText += `**${category.toUpperCase()}**\n`;
+            return embed;
+        };
 
-            for (const file of commandFiles) {
-                const filePath = path.join(categoryPath, file);
-                const cmd = require(filePath);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("prev")
+                .setLabel("⬅ Previous")
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(page === 0),
+            new ButtonBuilder()
+                .setCustomId("next")
+                .setLabel("Next ➡")
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(commands.length <= pageSize)
+        );
 
-                if (cmd.data && cmd.data.name) {
-                    helpText += `• **/${cmd.data.name}** — ${cmd.data.description || "No description"}\n`;
-                }
-            }
+        const msg = await interaction.reply({ embeds: [generateEmbed(page)], components: [row], fetchReply: true });
 
-            helpText += "\n";
-        }
+        const collector = msg.createMessageComponentCollector({ time: 60000 });
 
-        const embed = new EmbedBuilder()
-            .setColor("#2B2D31")
-            .setTitle("Command List")
-            .setDescription(helpText || "No commands found.")
-            .setFooter({
-                text: `${interaction.guild.name}`,
-                iconURL: interaction.guild.iconURL() || undefined
-            })
-            .setTimestamp();
+        collector.on("collect", i => {
+            if (i.user.id !== interaction.user.id) return i.reply({ content: "You can't control this.", ephemeral: true });
 
-        return interaction.reply({ embeds: [embed], ephemeral: false });
+            if (i.customId === "next") page++;
+            if (i.customId === "prev") page--;
+
+            i.update({
+                embeds: [generateEmbed(page)],
+                components: [
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId("prev")
+                            .setLabel("⬅ Previous")
+                            .setStyle(ButtonStyle.Primary)
+                            .setDisabled(page === 0),
+                        new ButtonBuilder()
+                            .setCustomId("next")
+                            .setLabel("Next ➡")
+                            .setStyle(ButtonStyle.Primary)
+                            .setDisabled(page >= Math.ceil(commands.length / pageSize) - 1)
+                    )
+                ]
+            });
+        });
+
+        collector.on("end", () => {
+            interaction.editReply({ components: [] }).catch(() => {});
+        });
     }
 };
