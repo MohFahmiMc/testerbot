@@ -1,58 +1,108 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ComponentType } = require("discord.js");
-
-const COLORS = [
-    { name: "Blue", hex: "#3498db", style: ButtonStyle.Primary },
-    { name: "Red", hex: "#e74c3c", style: ButtonStyle.Danger },
-    { name: "Green", hex: "#2ecc71", style: ButtonStyle.Success },
-    { name: "Yellow", hex: "#f1c40f", style: ButtonStyle.Secondary },
-    { name: "Purple", hex: "#9b59b6", style: ButtonStyle.Primary },
-];
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  InteractionType,
+} = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName("color")
-        .setDescription("Select a color to show an embed with that color."),
+  data: new SlashCommandBuilder()
+    .setName("color")
+    .setDescription("Preview embed dengan warna pilihan, termasuk custom hex!"),
 
-    async execute(interaction) {
-        const row = new ActionRowBuilder();
+  async execute(interaction) {
+    // Tombol preset
+    const colors = [
+      { name: "Red", hex: "#FF0000", style: ButtonStyle.Danger },
+      { name: "Blue", hex: "#0000FF", style: ButtonStyle.Primary },
+      { name: "Green", hex: "#00FF00", style: ButtonStyle.Success },
+      { name: "Yellow", hex: "#FFFF00", style: ButtonStyle.Secondary },
+      { name: "Purple", hex: "#800080", style: ButtonStyle.Secondary },
+      { name: "Custom Hex", hex: "custom", style: ButtonStyle.Secondary }
+    ];
 
-        COLORS.forEach(color => {
-            row.addComponents(
-                new ButtonBuilder()
-                    .setCustomId(color.name)
-                    .setLabel(color.name)
-                    .setStyle(color.style)
-            );
-        });
+    // Embed default
+    const embed = new EmbedBuilder()
+      .setTitle("Color Preview")
+      .setDescription("Pilih preset tombol atau input custom hex.")
+      .setColor("#808080");
 
-        await interaction.reply({
-            content: "Select a color:",
-            components: [row],
-            ephemeral: true
-        });
+    const row = new ActionRowBuilder();
+    colors.forEach(c => {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`color_${c.hex.replace("#", "")}`)
+          .setLabel(c.name)
+          .setStyle(c.style)
+      );
+    });
 
-        const filter = i => COLORS.map(c => c.name).includes(i.customId) && i.user.id === interaction.user.id;
-        const collector = interaction.channel.createMessageComponentCollector({ filter, componentType: ComponentType.Button, time: 60000 });
+    const msg = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
 
-        collector.on("collect", async i => {
-            const selected = COLORS.find(c => c.name === i.customId);
-            if (!selected) return;
+    const collector = msg.createMessageComponentCollector({ time: 180000 }); // 3 menit
 
-            const embed = new EmbedBuilder()
-                .setTitle(`${selected.name} Color`)
-                .setDescription(`Hex code: \`${selected.hex}\``)
-                .setColor(selected.hex)
-                .setImage(`https://singlecolorimage.com/get/${selected.hex.replace("#","")}/400x100`)
-                .setFooter({ text: `Color selected by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });
+    collector.on("collect", async i => {
+      if (i.user.id !== interaction.user.id)
+        return i.reply({ content: "Ini bukan untukmu!", ephemeral: true });
 
-            await i.update({ content: "Here is your color embed:", embeds: [embed], components: [] });
-            collector.stop();
-        });
+      if (i.customId === "color_custom") {
+        // Modal input
+        const modal = new ModalBuilder()
+          .setCustomId("color_modal")
+          .setTitle("Masukkan Hex Color")
+          .addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId("customHex")
+                .setLabel("Hex color (contoh: #FF5733)")
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            )
+          );
+        await i.showModal(modal);
+        return;
+      }
 
-        collector.on("end", collected => {
-            if (collected.size === 0) {
-                interaction.editReply({ content: "No color was selected.", components: [] }).catch(() => {});
-            }
-        });
-    }
+      const hex = "#" + i.customId.split("_")[1];
+      const newEmbed = EmbedBuilder.from(embed).setColor(hex).setDescription(`Warna dipilih: **${hex}**`);
+      await i.update({ embeds: [newEmbed] });
+    });
+
+    // Modal interaction
+    interaction.client.on("interactionCreate", async modalInteraction => {
+      if (modalInteraction.type !== InteractionType.ModalSubmit) return;
+      if (modalInteraction.customId !== "color_modal") return;
+      if (modalInteraction.user.id !== interaction.user.id) return;
+
+      const hexInput = modalInteraction.fields.getTextInputValue("customHex").trim();
+      // Validasi hex
+      const isValidHex = /^#([0-9A-F]{6})$/i.test(hexInput);
+      if (!isValidHex) {
+        return modalInteraction.reply({ content: "Hex tidak valid! Gunakan format #RRGGBB", ephemeral: true });
+      }
+
+      const newEmbed = EmbedBuilder.from(embed).setColor(hexInput).setDescription(`Warna dipilih: **${hexInput}**`);
+      await modalInteraction.update({ embeds: [newEmbed] });
+    });
+
+    collector.on("end", async () => {
+      // disable semua tombol setelah habis waktu
+      const disabledRow = new ActionRowBuilder();
+      colors.forEach(c => {
+        disabledRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`color_${c.hex.replace("#", "")}`)
+            .setLabel(c.name)
+            .setStyle(c.style)
+            .setDisabled(true)
+        );
+      });
+      await msg.edit({ components: [disabledRow] });
+    });
+  },
 };
