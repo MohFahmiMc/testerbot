@@ -1,39 +1,36 @@
 require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const { REST, Routes } = require("discord.js");
+const { REST, Routes } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID;
+// === ENV ===
+const token = process.env.TOKEN;
+const clientId = process.env.CLIENT_ID;
+const guildId = process.env.GUILD_ID;
 
-if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
-    console.error("❌ Missing TOKEN / CLIENT_ID / GUILD_ID in .env");
+// === FILE COMMAND ===
+const commandName = "botstart";
+const filePath = path.join(__dirname, "commands", "utility", `${commandName}.js`);
+
+if (!fs.existsSync(filePath)) {
+    console.error(`❌ Command file not found: ${filePath}`);
     process.exit(1);
 }
 
-const commandName = "botrestart"; 
-const commandPath = path.join(__dirname, "commands", "utility", `${commandName}.js`);
+const command = require(filePath);
 
-if (!fs.existsSync(commandPath)) {
-    console.error("❌ Command file not found:", commandPath);
-    process.exit(1);
-}
-
-const command = require(commandPath);
-
-const rest = new REST({ version: "10" }).setToken(TOKEN);
+const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
     try {
-        console.log(`🔄 Deploying command /${commandName} to guild ${GUILD_ID}...`);
+        console.log(`⏳ Deploying /${commandName} ...`);
 
-        await rest.put(
-            Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-            { body: [command.data.toJSON()] }
+        const res = await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: [ command.data.toJSON() ] }
         );
 
-        console.log("✅ Successfully deployed!");
+        console.log(`✅ Successfully deployed /${commandName} to guild ${guildId}`);
     } catch (error) {
         console.error(error);
     }
