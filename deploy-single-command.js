@@ -1,37 +1,31 @@
-require("dotenv").config();
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
+require('dotenv').config();
 
-// === ENV ===
-const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID;
+const clientId = process.env.CLIENT_ID; // ID bot
 const guildId = process.env.GUILD_ID;
+const token = process.env.TOKEN;
 
-// === FILE COMMAND ===
-const commandName = "botstart";
-const filePath = path.join(__dirname, "commands", "utility", `${commandName}.js`);
+const commandPath = './commands/utility/botrestart.js';
 
-if (!fs.existsSync(filePath)) {
-    console.error(`❌ Command file not found: ${filePath}`);
+if (!fs.existsSync(commandPath)) {
+    console.error(`❌ Command file not found: ${commandPath}`);
     process.exit(1);
 }
 
-const command = require(filePath);
-
-const rest = new REST({ version: '10' }).setToken(token);
+const command = require(commandPath);
 
 (async () => {
     try {
-        console.log(`⏳ Deploying /${commandName} ...`);
+        console.log(`🚀 Deploying command ${command.data.name} to guild ${guildId}...`);
 
-        const res = await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId),
-            { body: [ command.data.toJSON() ] }
-        );
+        await new REST({ version: '10' }).setToken(token)
+            .put(Routes.applicationGuildCommands(clientId, guildId), {
+                body: [command.data.toJSON()],
+            });
 
-        console.log(`✅ Successfully deployed /${commandName} to guild ${guildId}`);
+        console.log(`✅ Successfully deployed command ${command.data.name} to guild ${guildId}`);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Error deploying command:', error);
     }
 })();
