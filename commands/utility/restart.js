@@ -1,23 +1,41 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+require("dotenv").config();
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("restart")
-    .setDescription("Restart the bot (Owner only)."),
+    data: new SlashCommandBuilder()
+        .setName("restart")
+        .setDescription("Restart bot (Owner only)"),
 
-  async execute(interaction, client) {
-    const ownerId = process.env.OWNER_ID; // Masukkan ID Discord kamu di env
+    async execute(interaction) {
 
-    if (interaction.user.id !== ownerId) {
-      return interaction.reply({ content: "❌ You are not allowed to restart the bot.", ephemeral: true });
+        // Ambil owner dari .env
+        const owners = process.env.OWNERS
+            ? process.env.OWNERS.split(",")
+            : [process.env.OWNER_ID];
+
+        // Cek apakah user adalah owner
+        if (!owners.includes(interaction.user.id)) {
+            return interaction.reply({
+                content: "❌ | Kamu **bukan owner** bot.",
+                ephemeral: true
+            });
+        }
+
+        // Embed status restart
+        const embed = new EmbedBuilder()
+            .setTitle("🔄 Restarting Bot…")
+            .setDescription("Bot akan restart dalam beberapa detik.\nSilakan tunggu…")
+            .setColor("#ffcc00")
+            .setFooter({ text: `Diminta oleh ${interaction.user.tag}` })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+
+        console.log("⚠ Restart requested by owner:", interaction.user.id);
+
+        // Delay biar embed sempat terkirim
+        setTimeout(() => {
+            process.exit(1); // Railway / PM2 / Termux akan auto start lagi
+        }, 3000);
     }
-
-    await interaction.reply({ content: "♻️ Restarting bot...", ephemeral: true });
-
-    // Logout dan login ulang
-    client.destroy();
-    client.login(process.env.TOKEN).catch(err => {
-      console.error("Failed to relogin:", err);
-    });
-  },
 };
