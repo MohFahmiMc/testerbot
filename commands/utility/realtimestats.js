@@ -1,72 +1,47 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
-
-const premiumFile = path.join(__dirname, "../data/premium.json");
-const settingsFile = path.join(__dirname, "../data/realtimestats.json");
-
-// Pastikan file data ada
-if (!fs.existsSync(premiumFile)) fs.writeFileSync(premiumFile, JSON.stringify([]));
-if (!fs.existsSync(settingsFile)) fs.writeFileSync(settingsFile, JSON.stringify({}));
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("realtimestats")
-    .setDescription("View real-time bot & server statistics (premium)")
-    .addSubcommand(sub =>
-      sub.setName("show")
-        .setDescription("Show real-time statistics"))
+    .setDescription("Set or show real-time stats channel")
     .addSubcommand(sub =>
       sub.setName("set")
-        .setDescription("Set the channel to post stats")
-        .addChannelOption(option =>
-          option.setName("channel")
-            .setDescription("Select a text channel")
-            .setRequired(true))
-    ),
+         .setDescription("Set the channel to show stats")
+         .addChannelOption(opt => opt.setName("channel").setDescription("Channel for stats").setRequired(true)))
+    .addSubcommand(sub => sub.setName("show").setDescription("Show current server stats")),
 
   async execute(interaction) {
-    const premiumUsers = JSON.parse(fs.readFileSync(premiumFile, "utf8"));
-    if (!premiumUsers.includes(interaction.user.id)) {
-      return interaction.reply({ content: "❌ You do not have access to this premium command.", ephemeral: true });
-    }
+    const filePath = path.join(__dirname, "../data/realtimestats.json");
+    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const subcommand = interaction.options.getSubcommand();
 
-    const settings = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
-
-    if (interaction.options.getSubcommand() === "set") {
+    if (subcommand === "set") {
       const channel = interaction.options.getChannel("channel");
-      settings[interaction.guild.id] = channel.id;
-      fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
-      return interaction.reply({ content: `✅ Real-time stats channel set to ${channel}.`, ephemeral: true });
-    }
-
-    // show stats
-    const guildCount = interaction.client.guilds.cache.size;
-    const memberCount = interaction.client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
-    const botCount = interaction.client.users.cache.filter(u => u.bot).size;
-
-    const embed = new EmbedBuilder()
-      .setTitle("📊 Real-Time Bot Statistics")
-      .setColor("Blue")
-      .addFields(
-        { name: "Servers", value: `${guildCount}`, inline: true },
-        { name: "Total Members", value: `${memberCount}`, inline: true },
-        { name: "Bots Online", value: `${botCount}`, inline: true },
-        { name: "Owner", value: `<@${interaction.client.application.owner.id}>`, inline: false }
-      )
-      .setFooter({ text: "ScarilyId Premium Stats" })
-      .setTimestamp();
-
-    // kirim ke channel yg diset atau reply di interaction
-    const channelId = settings[interaction.guild.id];
-    if (channelId) {
-      const targetChannel = interaction.client.channels.cache.get(channelId);
-      if (targetChannel) {
-        targetChannel.send({ embeds: [embed] });
-        return interaction.reply({ content: "✅ Real-time stats posted in the configured channel.", ephemeral: true });
+      const existing = data.servers.find(s => s.guild_id === interaction.guild.id);
+      if (existing) {
+        existing.channel_id = channel.id;
+      } else {
+        data.servers.push({ guild_id: interaction.guild.id, channel_id: channel.id });
       }
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      return interaction.reply(`✅ Stats channel set to ${channel}`);
     }
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    if (subcommand === "show") {
+      const stats = data.servers.find(s => s.guild_id === interaction.guild.id);
+      if (!stats) return interaction.reply("❌ Stats channel not set yet.");
+      const embed = new EmbedBuilder()
+        .setTitle("Real-Time Stats")
+        .addFields(
+          { name: "Server Name", value: interaction.guild.name, inline: true },
+          { name: "Server ID", value: interaction.guild.id, inline: true },
+          { name: "Member Count", value: `${interaction.guild.memberCount}`, inline: true },
+          { name: "Bot Count", value: `${interaction.guild.members.cache.filter(m => m.user.bot).size}`, inline: true }
+        )
+        .setTimestamp();
+      return interaction.reply({ embeds: [embed] });
+    }
   },
 };
