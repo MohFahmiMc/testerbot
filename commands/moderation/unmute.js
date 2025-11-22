@@ -1,38 +1,31 @@
-const { EmbedBuilder, PermissionsBitField } = require("discord.js");
+const { SlashCommandBuilder, PermissionsBitField } = require("discord.js");
 
 module.exports = {
-    data: {
-        name: "unmute",
-        description: "Unmute a member",
-        options: [
-            {
-                name: "user",
-                type: 6,
-                description: "Member to unmute",
-                required: true
-            }
-        ]
-    },
+    data: new SlashCommandBuilder()
+        .setName("unmute")
+        .setDescription("Unmute a member in the server")
+        .addUserOption(option =>
+            option.setName("member")
+                .setDescription("Member to unmute")
+                .setRequired(true)),
+
     async execute(interaction) {
+        const member = interaction.options.getMember("member");
+
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            return interaction.reply({ content: "❌ You don't have permission to unmute members.", ephemeral: true });
+            return interaction.reply({ content: "❌ You do not have permission to unmute members.", ephemeral: true });
         }
 
-        const user = interaction.options.getUser("user");
-        const member = interaction.guild.members.cache.get(user.id);
-        if (!member) return interaction.reply({ content: "❌ Member not found.", ephemeral: true });
-
-        try {
-            await member.timeout(null); // remove mute
-            const embed = new EmbedBuilder()
-                .setTitle("✅ Member Unmuted")
-                .setDescription(`${member.user.tag} has been unmuted.`)
-                .setColor("Green")
-                .setTimestamp();
-
-            interaction.reply({ embeds: [embed] });
-        } catch (err) {
-            interaction.reply({ content: "❌ Cannot unmute this member.", ephemeral: true });
+        const mutedRole = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === "muted");
+        if (!mutedRole) {
+            return interaction.reply({ content: "❌ No muted role found on this server.", ephemeral: true });
         }
-    }
+
+        if (!member.roles.cache.has(mutedRole.id)) {
+            return interaction.reply({ content: "❌ This member is not muted.", ephemeral: true });
+        }
+
+        await member.roles.remove(mutedRole);
+        await interaction.reply({ content: `✅ ${member.user.tag} has been unmuted.` });
+    },
 };

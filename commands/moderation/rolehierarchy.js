@@ -1,22 +1,34 @@
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require("discord.js");
 
 module.exports = {
-    data: {
-        name: "rolehierarchy",
-        description: "Show the server role hierarchy"
-    },
+    data: new SlashCommandBuilder()
+        .setName("rolehierarchy")
+        .setDescription("Show the server's role hierarchy"),
+
     async execute(interaction) {
-        const roles = interaction.guild.roles.cache
-            .sort((a, b) => b.position - a.position)
-            .map(role => role.name)
-            .join("\n");
+        // Periksa permission member
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return interaction.reply({ content: "❌ You do not have permission to view the role hierarchy.", ephemeral: true });
+        }
 
-        const embed = new EmbedBuilder()
-            .setTitle("📊 Server Role Hierarchy")
-            .setDescription(roles || "No roles found")
-            .setColor("Blue")
-            .setTimestamp();
+        try {
+            // Ambil semua role, urutkan berdasarkan posisi (descending)
+            const roles = interaction.guild.roles.cache
+                .sort((a, b) => b.position - a.position)
+                .map(r => `${r.name} - ID: ${r.id}`)
+                .join("\n");
 
-        interaction.reply({ embeds: [embed] });
-    }
+            const embed = new EmbedBuilder()
+                .setTitle(`Role Hierarchy for ${interaction.guild.name}`)
+                .setDescription(roles || "No roles found")
+                .setColor("Blue")
+                .setFooter({ text: `Requested by ${interaction.user.tag}` })
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [embed] });
+        } catch (err) {
+            console.error(err);
+            return interaction.reply({ content: "❌ An error occurred while fetching the role hierarchy.", ephemeral: true });
+        }
+    },
 };
