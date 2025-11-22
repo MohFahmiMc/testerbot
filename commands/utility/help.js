@@ -1,38 +1,68 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require("discord.js");
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("help")
-    .setDescription("Show all commands."),
+    data: new SlashCommandBuilder()
+        .setName("help")
+        .setDescription("Show all available commands."),
 
-  async execute(interaction) {
-    const embeds = [
-      new EmbedBuilder().setTitle("Help Page 1").setDescription("Fun Commands").setColor("#0099ff"),
-      new EmbedBuilder().setTitle("Help Page 2").setDescription("Moderation Commands").setColor("#00ff99"),
-    ];
+    async execute(interaction) {
+        const commands = interaction.client.commands.map(cmd => `**/${cmd.data.name}** - ${cmd.data.description || "No description"}`);
 
-    let page = 0;
+        const pageSize = 10; // jumlah command per halaman
+        const pages = [];
+        for (let i = 0; i < commands.length; i += pageSize) {
+            pages.push(commands.slice(i, i + pageSize));
+        }
 
-    const row = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder().setCustomId("prev").setLabel("Previous").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId("next").setLabel("Next").setStyle(ButtonStyle.Primary)
-      );
+        let currentPage = 0;
 
-    const msg = await interaction.reply({ embeds: [embeds[page]], components: [row], fetchReply: true });
+        const embed = new EmbedBuilder()
+            .setTitle("Command List")
+            .setDescription(pages[currentPage].join("\n"))
+            .setColor("Gray");
 
-    const collector = msg.createMessageComponentCollector({ time: 60000 });
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("prev")
+                .setLabel("⬅️ Prev")
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId("next")
+                .setLabel("Next ➡️")
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId("all")
+                .setLabel("Show All")
+                .setStyle(ButtonStyle.Secondary)
+        );
 
-    collector.on("collect", i => {
-      if (i.user.id !== interaction.user.id) return i.reply({ content: "Not for you", ephemeral: true });
+        const message = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true, ephemeral: true });
 
-      if (i.customId === "next") page++;
-      if (i.customId === "prev") page--;
+        const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
 
-      if (page < 0) page = embeds.length - 1;
-      if (page >= embeds.length) page = 0;
+        collector.on("collect", i => {
+            if (i.user.id !== interaction.user.id) return i.reply({ content: "You can't use this button!", ephemeral: true });
 
-      i.update({ embeds: [embeds[page]], components: [row] });
-    });
-  },
+            if (i.customId === "prev") {
+                currentPage = (currentPage === 0) ? pages.length - 1 : currentPage - 1;
+                embed.setDescription(pages[currentPage].join("\n"));
+                i.update({ embeds: [embed] });
+            } else if (i.customId === "next") {
+                currentPage = (currentPage + 1) % pages.length;
+                embed.setDescription(pages[currentPage].join("\n"));
+                i.update({ embeds: [embed] });
+            } else if (i.customId === "all") {
+                embed.setDescription(commands.join("\n"));
+                i.update({ embeds: [embed] });
+            }
+        });
+
+        collector.on("end", () => {
+            // matikan tombol setelah 60 detik
+            const disabledRow = new ActionRowBuilder().addComponents(
+                row.components.map(btn => btn.setDisabled(true))
+            );
+            message.edit({ components: [disabledRow] }).catch(() => {});
+        });
+    }
 };
