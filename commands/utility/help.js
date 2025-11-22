@@ -1,68 +1,108 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require("discord.js");
+const { 
+    SlashCommandBuilder,
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ComponentType
+} = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Show all available commands."),
+        .setDescription("Show all bot commands with categories."),
 
-    async execute(interaction) {
-        const commands = interaction.client.commands.map(cmd => `**/${cmd.data.name}** - ${cmd.data.description || "No description"}`);
+    async execute(interaction, client) {
+        await interaction.deferReply();
 
-        const pageSize = 10; // jumlah command per halaman
-        const pages = [];
-        for (let i = 0; i < commands.length; i += pageSize) {
-            pages.push(commands.slice(i, i + pageSize));
-        }
+        // Ambil semua command dan kategorinya
+        const categories = {};
+        client.commands.forEach(cmd => {
+            const folder = cmd.folder || "Uncategorized";
+            if (!categories[folder]) categories[folder] = [];
+            categories[folder].push(cmd.data.name);
+        });
 
-        let currentPage = 0;
+        const categoryNames = Object.keys(categories);
+        let page = 0;
 
-        const embed = new EmbedBuilder()
-            .setTitle("Command List")
-            .setDescription(pages[currentPage].join("\n"))
-            .setColor("Gray");
+        const generateEmbed = (pageIndex) => {
+            const category = categoryNames[pageIndex];
+            const cmds = categories[category].map(c => `\`${c}\``).join(", ");
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("prev")
-                .setLabel("⬅️ Prev")
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId("next")
-                .setLabel("Next ➡️")
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId("all")
-                .setLabel("Show All")
-                .setStyle(ButtonStyle.Secondary)
-        );
+            return new EmbedBuilder()
+                .setTitle(`Help - ${category}`)
+                .setDescription(cmds || "No commands in this category.")
+                .setColor(0x2f3136)
+                .setFooter({ text: "Zephyr Bot", iconURL: client.user.displayAvatarURL() });
+        };
 
-        const message = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true, ephemeral: true });
+        // Tombol navigasi
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId("prev")
+                    .setLabel("◀ Prev")
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(categoryNames.length <= 1),
+                new ButtonBuilder()
+                    .setCustomId("next")
+                    .setLabel("Next ▶")
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(categoryNames.length <= 1),
+                new ButtonBuilder()
+                    .setCustomId("showall")
+                    .setLabel("📃 Show All")
+                    .setStyle(ButtonStyle.Secondary)
+            );
 
-        const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
+        const helpMessage = await interaction.editReply({
+            embeds: [generateEmbed(page)],
+            components: [row]
+        });
 
-        collector.on("collect", i => {
-            if (i.user.id !== interaction.user.id) return i.reply({ content: "You can't use this button!", ephemeral: true });
+        const collector = helpMessage.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: 15 * 60 * 1000 // 15 menit
+        });
+
+        collector.on("collect", async i => {
+            if (i.user.id !== interaction.user.id) {
+                return i.reply({ content: "❌ You cannot use these buttons.", ephemeral: true });
+            }
 
             if (i.customId === "prev") {
-                currentPage = (currentPage === 0) ? pages.length - 1 : currentPage - 1;
-                embed.setDescription(pages[currentPage].join("\n"));
-                i.update({ embeds: [embed] });
-            } else if (i.customId === "next") {
-                currentPage = (currentPage + 1) % pages.length;
-                embed.setDescription(pages[currentPage].join("\n"));
-                i.update({ embeds: [embed] });
-            } else if (i.customId === "all") {
-                embed.setDescription(commands.join("\n"));
-                i.update({ embeds: [embed] });
+                page = (page === 0) ? categoryNames.length - 1 : page - 1;
+                await i.update({ embeds: [generateEmbed(page)] });
+            } 
+            else if (i.customId === "next") {
+                page = (page + 1) % categoryNames.length;
+                await i.update({ embeds: [generateEmbed(page)] });
+            } 
+            else if (i.customId === "showall") {
+                const allCmds = [];
+                for (const cat of categoryNames) {
+                    allCmds.push(`**${cat}**\n${categories[cat].map(c => `\`${c}\``).join(", ")}`);
+                }
+
+                const embedAll = new EmbedBuilder()
+                    .setTitle("All Commands")
+                    .setDescription(allCmds.join("\n\n"))
+                    .setColor(0x2f3136)
+                    .setFooter({ text: "Zephyr Bot", iconURL: client.user.displayAvatarURL() });
+
+                await i.update({ embeds: [embedAll], components: [] });
             }
         });
 
-        collector.on("end", () => {
-            // matikan tombol setelah 60 detik
-            const disabledRow = new ActionRowBuilder().addComponents(
-                row.components.map(btn => btn.setDisabled(true))
-            );
-            message.edit({ components: [disabledRow] }).catch(() => {});
+        collector.on("end", async () => {
+            if (!helpMessage.deleted) {
+                const disabledRow = new ActionRowBuilder()
+                    .addComponents(
+                        row.components.map(button => button.setDisabled(true))
+                    );
+                await interaction.editReply({ components: [disabledRow] });
+            }
         });
     }
 };
