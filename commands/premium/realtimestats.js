@@ -4,7 +4,7 @@ const path = require('path');
 
 const premiumFile = path.join(__dirname, '../../premium/premium.json');
 const adminsFile = path.join(__dirname, '../../data/admins.json');
-const statsFile = path.join(__dirname, '../../premium/realtimeStats.json');
+const STATS_FILE = path.join(__dirname, "../../data/realtimeStats.json");
 
 if (!fs.existsSync(statsFile)) fs.writeFileSync(statsFile, JSON.stringify({}));
 
