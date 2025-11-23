@@ -6,14 +6,17 @@ const premiumFile = path.join(__dirname, '../../premium/premium.json');
 const adminsFile = path.join(__dirname, '../../data/admins.json');
 const STATS_FILE = path.join(__dirname, "../../data/realtimeStats.json");
 
-if (!fs.existsSync(statsFile)) fs.writeFileSync(statsFile, JSON.stringify({}));
+// Pastikan file realtimeStats.json ada
+if (!fs.existsSync(STATS_FILE)) {
+    fs.writeFileSync(STATS_FILE, JSON.stringify({}, null, 2));
+}
 
 function isPremium(guildId) {
     if (!fs.existsSync(premiumFile)) return false;
     const data = JSON.parse(fs.readFileSync(premiumFile));
     const guild = data[guildId];
     if (!guild) return false;
-    if (guild.expires === 0) return true; // lifetime premium
+    if (guild.expires === 0) return true; // lifetime
     return Date.now() < guild.expires;
 }
 
@@ -37,16 +40,10 @@ module.exports = {
         const guild = interaction.guild;
         const guildId = guild.id;
         const userId = interaction.user.id;
-
         const OWNER_ID = process.env.OWNER_ID;
 
-        // cek admin command
         const adminCommand = isCommandAdmin(userId);
-
-        // cek premium
         const premiumServer = isPremium(guildId);
-
-        // cek owner
         const isOwner = (userId === OWNER_ID);
 
         if (!adminCommand && !premiumServer && !isOwner) {
@@ -56,7 +53,6 @@ module.exports = {
             });
         }
 
-        // Ambil stats
         const members = await guild.members.fetch();
         const humanCount = members.filter(m => !m.user.bot).size;
         const botCount = members.filter(m => m.user.bot).size;
@@ -77,26 +73,26 @@ module.exports = {
 
         const messageId = interaction.options.getString('messageid');
 
-        // Jika tidak ada messageId → kirim baru
+        // Send new message
         if (!messageId) {
             const sent = await interaction.reply({
                 embeds: [embed],
                 fetchReply: true
             });
 
-            const fileData = JSON.parse(fs.readFileSync(statsFile));
+            const fileData = JSON.parse(fs.readFileSync(STATS_FILE));
             fileData[guildId] = {
                 channelId: sent.channel.id,
                 messageId: sent.id
             };
-            fs.writeFileSync(statsFile, JSON.stringify(fileData, null, 2));
+            fs.writeFileSync(STATS_FILE, JSON.stringify(fileData, null, 2));
 
             return;
         }
 
-        // Jika ada messageId → refresh pesan
+        // Refresh existing message
         try {
-            const fileData = JSON.parse(fs.readFileSync(statsFile));
+            const fileData = JSON.parse(fs.readFileSync(STATS_FILE));
             const data = fileData[guildId];
 
             if (!data) {
