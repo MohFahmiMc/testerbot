@@ -1,32 +1,80 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
-const UPDATES_FILE = "./data/updates.json";
+const path = require("path");
+require("dotenv").config();
+
+const UPDATES_FILE = path.join(__dirname, "../../data/updates.json");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("update")
-        .setDescription("Show the latest bot updates from GitHub."),
+        .setDescription("Show latest bot updates taken from GitHub commits."),
 
-    async execute(interaction) {
-        if (!fs.existsSync(UPDATES_FILE)) {
-            return interaction.reply({ content: "No updates found.", ephemeral: true });
+    async execute(interaction, client) {
+        await interaction.deferReply();
+
+        const token = process.env.GH_TOKEN;
+        const owner = process.env.GH_OWNER;
+        const repo = process.env.GH_REPO;
+
+        if (!token || !owner || !repo) {
+            return interaction.editReply({
+                content: "❌ GitHub configuration missing in `.env` (GH_TOKEN, GH_OWNER, GH_REPO)."
+            });
         }
 
-        const updates = JSON.parse(fs.readFileSync(UPDATES_FILE));
+        // Fetch commits
+        const commitsURL = `https://api.github.com/repos/${owner}/${repo}/commits`;
+
+        let commits;
+        try {
+            const res = await fetch(commitsURL, {
+                headers: { Authorization: `token ${token}` }
+            });
+
+            if (!res.ok) throw new Error("GitHub API error");
+
+            commits = await res.json();
+        } catch (err) {
+            console.error(err);
+            return interaction.editReply("❌ Failed to fetch commits from GitHub.");
+        }
+
+        if (!Array.isArray(commits) || commits.length === 0) {
+            return interaction.editReply("❌ No commits found in repository.");
+        }
+
+        // Prepare JSON storage
+        let saved = [];
+        if (fs.existsSync(UPDATES_FILE)) {
+            saved = JSON.parse(fs.readFileSync(UPDATES_FILE, "utf8"));
+        }
+
+        // Save new commits
+        const output = commits.slice(0, 20).map(c => ({
+            message: c.commit.message,
+            date: c.commit.author.date,
+            url: c.html_url
+        }));
+
+        fs.writeFileSync(UPDATES_FILE, JSON.stringify(output, null, 2));
+
+        // Prepare embed
         const embed = new EmbedBuilder()
-            .setTitle("📜 Bot Updates")
+            .setTitle("📦 Latest Bot Updates")
             .setColor("#00FFFF")
+            .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
             .setFooter({ text: "Powered by GitHub commits" })
             .setTimestamp();
 
-        const latest = updates.slice(0, 5); // tampilkan 5 terbaru
-        latest.forEach(u => {
+        output.slice(0, 5).forEach(c => {
             embed.addFields({
-                name: u.message.split("\n")[0], // baris pertama pesan commit
-                value: `[View Commit](${u.url}) • ${new Date(u.date).toLocaleString()} • ${u.author}`,
+                name: `📌 ${c.message.split("\n")[0]}`,
+                value: `🔗 [View Commit](${c.url})\n🕒 ${new Date(c.date).toLocaleString()}`,
+                inline: false
             });
         });
 
-        await interaction.reply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
     },
 };
