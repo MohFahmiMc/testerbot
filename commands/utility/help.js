@@ -1,59 +1,67 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Display all bot commands."),
+        .setDescription("Show bot commands and categories"),
 
-    async execute(interaction, client) {
-        const commandsPath = path.join(__dirname, "..");
-        const folders = fs.readdirSync(commandsPath).filter(f => fs.lstatSync(path.join(commandsPath, f)).isDirectory());
-        let embeds = [];
+    async execute(interaction) {
+        const commandsPath = path.join(__dirname);
+        const commandFolders = fs.readdirSync(commandsPath);
 
-        for (const folder of folders) {
-            const commandFiles = fs.readdirSync(path.join(commandsPath, folder)).filter(f => f.endsWith(".js"));
-            const descriptionList = commandFiles.map(f => {
-                const cmd = require(path.join(commandsPath, folder, f));
-                return `\`${cmd.data.name}\` - ${cmd.data.description || "No description"}`;
-            }).join("\n");
-
-            const embed = new EmbedBuilder()
-                .setTitle(`Commands: ${folder}`)
-                .setDescription(descriptionList || "No commands")
-                .setColor("Blue")
-                .setFooter({ text: "MyDiscordBot • Help Command" });
-            embeds.push(embed);
+        const categories = {};
+        for (const folder of commandFolders) {
+            const folderPath = path.join(commandsPath, folder);
+            if (!fs.lstatSync(folderPath).isDirectory()) continue;
+            const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith(".js"));
+            categories[folder] = commandFiles.map(f => {
+                const cmd = require(path.join(folderPath, f));
+                return cmd.data?.name || f.replace(".js", "");
+            });
         }
 
-        // Pagination Buttons
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder().setCustomId("prev_page").setLabel("⬅️ Previous").setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId("next_page").setLabel("Next ➡️").setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId("show_all").setLabel("Show All").setStyle(ButtonStyle.Secondary)
-            );
+        const embed = new EmbedBuilder()
+            .setTitle("Bot Commands")
+            .setColor("Grey")
+            .setDescription("Here are the main categories:")
+            .setTimestamp();
 
-        let page = 0;
-        const msg = await interaction.reply({ embeds: [embeds[page]], components: [row], fetchReply: true });
+        let desc = "";
+        for (const [cat, cmds] of Object.entries(categories)) {
+            desc += `**${cat.charAt(0).toUpperCase() + cat.slice(1)}**: ${cmds.length} commands\n`;
+        }
+        embed.setDescription(desc);
 
-        const collector = msg.createMessageComponentCollector({ time: 60000 });
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("show_all_commands")
+                .setLabel("Show All Commands")
+                .setStyle(ButtonStyle.Secondary) // abu-abu
+        );
 
-        collector.on("collect", i => {
-            if (i.user.id !== interaction.user.id) return i.reply({ content: "You can't use this.", ephemeral: true });
+        await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
 
-            if (i.customId === "prev_page") page = (page > 0) ? page - 1 : embeds.length - 1;
-            if (i.customId === "next_page") page = (page + 1) % embeds.length;
-            if (i.customId === "show_all") {
-                const allEmbed = new EmbedBuilder()
+        const filter = i => i.customId === "show_all_commands" && i.user.id === interaction.user.id;
+        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
+
+        collector.on("collect", async i => {
+            if (i.customId === "show_all_commands") {
+                const fullEmbed = new EmbedBuilder()
                     .setTitle("All Commands")
-                    .setDescription(embeds.map(e => `**${e.title}**\n${e.data.description}`).join("\n\n"))
-                    .setColor("Green")
-                    .setFooter({ text: "MyDiscordBot • Help Command" });
-                return i.update({ embeds: [allEmbed], components: [] });
+                    .setColor("Grey")
+                    .setTimestamp();
+
+                let fullDesc = "";
+                for (const [cat, cmds] of Object.entries(categories)) {
+                    fullDesc += `**${cat.charAt(0).toUpperCase() + cat.slice(1)}**:\n`;
+                    fullDesc += cmds.join(", ") + "\n\n";
+                }
+
+                fullEmbed.setDescription(fullDesc);
+                await i.update({ embeds: [fullEmbed], components: [] });
             }
-            i.update({ embeds: [embeds[page]] });
         });
-    }
+    },
 };

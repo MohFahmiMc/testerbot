@@ -3,32 +3,39 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("about")
-        .setDescription("Show information about the bot"),
+        .setDescription("Displays detailed information about the bot."),
 
     async execute(interaction) {
-        const client = interaction.client;
+        const bot = interaction.client;
 
-        // Hitung total command
-        const totalCommands = client.commands.size;
+        // Ambil info real-time
+        const guildCount = bot.guilds.cache.size;
+        const userCount = bot.users.cache.size;
+        const channelCount = bot.channels.cache.size;
+        const totalCommands = bot.commands.size;
+        const ping = bot.ws.ping;
 
-        // Hitung total user yang bisa dijangkau
-        let totalUsers = 0;
-        client.guilds.cache.forEach(g => totalUsers += g.memberCount);
-
+        // Embed
         const embed = new EmbedBuilder()
-            .setTitle("🤖 About This Bot")
-            .setColor("Blue")
+            .setTitle(`${bot.user.username} Bot Information`)
+            .setDescription("Here is some detailed information about this bot and its owner.")
+            .setColor(0x5865F2) // Discord blurple
+            .setThumbnail(bot.user.displayAvatarURL()) // bot profile picture
             .addFields(
-                { name: "Bot Name", value: client.user.tag, inline: true },
-                { name: "Creator", value: "@mizephyr", inline: true },
-                { name: "Servers Joined", value: `${client.guilds.cache.size}`, inline: true },
-                { name: "Total Users", value: `${totalUsers}`, inline: true },
+                { name: "Owner", value: `<@${process.env.OWNER_ID}>`, inline: true },
+                { name: "Servers Joined", value: `${guildCount}`, inline: true },
+                { name: "Total Users", value: `${userCount}`, inline: true },
+                { name: "Total Channels", value: `${channelCount}`, inline: true },
                 { name: "Total Commands", value: `${totalCommands}`, inline: true },
-                { name: "Status", value: `${client.presence?.status || "Unknown"}`, inline: true }
+                { name: "Bot Latency", value: `${ping}ms`, inline: true },
+                { name: "Node.js Version", value: `${process.version}`, inline: true },
+                { name: "Discord.js Version", value: `${require("discord.js").version}`, inline: true },
+                { name: "Library", value: "discord.js", inline: true },
+                { name: "Support Server", value: "[Join Here](https://discord.gg/FkvM362RJu)", inline: true }
             )
-            .setFooter({ text: "Zephyr Bot • Made with ❤️" })
+            .setFooter({ text: `Zephyr Bot`, iconURL: bot.user.displayAvatarURL() })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
-    }
+    },
 };
