@@ -2,217 +2,209 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-// File paths
-const KEYS_FILE = path.join(__dirname, "../../data/keys.json");
-const PREMIUM_FILE = path.join(__dirname, "../../data/premium.json");
+const premiumPath = path.join(__dirname, "../../data/premium.json");
+const keysPath = path.join(__dirname, "../../data/keys.json");
+const adminsPath = path.join(__dirname, "../../data/admins.json");
+
+if (!fs.existsSync(premiumPath)) fs.writeFileSync(premiumPath, JSON.stringify({}, null, 2));
+if (!fs.existsSync(keysPath)) fs.writeFileSync(keysPath, JSON.stringify({}, null, 2));
+if (!fs.existsSync(adminsPath)) fs.writeFileSync(adminsPath, JSON.stringify({}, null, 2));
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("premium")
-        .setDescription("Premium management system")
-
-        // REDEEM KEY
-        .addSubcommand(sub =>
-            sub.setName("redeem")
-                .setDescription("Redeem a premium key")
+        .setDescription("Premium System Commands")
+        .addSubcommand(sc =>
+            sc.setName("trial")
+                .setDescription("Claim trial premium 12 jam (1x per server)")
+        )
+        .addSubcommand(sc =>
+            sc.setName("add")
+                .setDescription("Owner/Admin memberi premium manual")
+                .addStringOption(opt =>
+                    opt.setName("duration")
+                        .setDescription("Durasi: 1d / 7d / 30d / lifetime")
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sc =>
+            sc.setName("addkey")
+                .setDescription("Buat premium key (Owner/Admin)")
+                .addStringOption(opt =>
+                    opt.setName("duration")
+                        .setDescription("Durasi: 1d / 7d / 30d / lifetime")
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sc =>
+            sc.setName("redeem")
+                .setDescription("Redeem premium key")
                 .addStringOption(opt =>
                     opt.setName("key")
-                        .setDescription("Your premium key")
+                        .setDescription("Key premium")
                         .setRequired(true)
                 )
         )
-
-        // PREMIUM TRIAL
-        .addSubcommand(sub =>
-            sub.setName("trial")
-                .setDescription("Activate a one-time premium trial")
-        )
-
-        // OWNER: ADD KEY
-        .addSubcommand(sub =>
-            sub.setName("addkey")
-                .setDescription("Generate a premium key (OWNER ONLY)")
-                .addIntegerOption(opt =>
-                    opt.setName("days")
-                        .setDescription("How long the premium lasts")
-                        .setRequired(true)
-                )
-        )
-
-        // OWNER: LIST KEYS
-        .addSubcommand(sub =>
-            sub.setName("listkeys")
-                .setDescription("List all available premium keys (OWNER ONLY)")
-        )
-
-        // OWNER: REMOVE KEY
-        .addSubcommand(sub =>
-            sub.setName("removekey")
-                .setDescription("Delete a premium key (OWNER ONLY)")
-                .addStringOption(opt =>
-                    opt.setName("key")
-                        .setDescription("The key you want to remove")
-                        .setRequired(true)
-                )
+        .addSubcommand(sc =>
+            sc.setName("keylist")
+                .setDescription("Lihat semua premium key (Owner/Admin)")
         ),
 
     async execute(interaction) {
-        const ownerId = process.env.OWNER_ID;
-
-        if (!fs.existsSync(KEYS_FILE)) fs.writeFileSync(KEYS_FILE, "{}");
-        if (!fs.existsSync(PREMIUM_FILE)) fs.writeFileSync(PREMIUM_FILE, "{}");
-
-        let keys = JSON.parse(fs.readFileSync(KEYS_FILE));
-        let premium = JSON.parse(fs.readFileSync(PREMIUM_FILE));
-
         const sub = interaction.options.getSubcommand();
-        const isOwner = interaction.user.id === ownerId;
+        const guildId = interaction.guild.id;
+        const userId = interaction.user.id;
 
-        // =================================================
-        // 🔑 ADDKEY (OWNER)
-        // =================================================
-        if (sub === "addkey") {
-            if (!isOwner)
-                return interaction.reply({ content: "❌ Only the bot owner can generate keys.", ephemeral: true });
+        const OWNER_ID = process.env.OWNER_ID;
+        const admins = JSON.parse(fs.readFileSync(adminsPath));
+        const isAdminCommand = admins[userId] === true;
+        const isOwner = (userId === OWNER_ID);
 
-            const days = interaction.options.getInteger("days");
-            const key = `ZEPHYR-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        const premiumDB = JSON.parse(fs.readFileSync(premiumPath));
+        const keysDB = JSON.parse(fs.readFileSync(keysPath));
 
-            keys[key] = { days };
-            fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
-
-            const embed = new EmbedBuilder()
-                .setTitle("🔑 Premium Key Generated")
-                .setColor("Gold")
-                .addFields(
-                    { name: "Key", value: `\`${key}\`` },
-                    { name: "Duration", value: `${days} days` }
-                )
-                .setTimestamp();
-
-            return interaction.reply({ embeds: [embed], ephemeral: true });
-        }
-
-        // =================================================
-        // 📃 LIST KEYS (OWNER)
-        // =================================================
-        if (sub === "listkeys") {
-            if (!isOwner)
-                return interaction.reply({ content: "❌ Only the owner can view the key list.", ephemeral: true });
-
-            if (Object.keys(keys).length === 0)
-                return interaction.reply({ content: "📭 No available keys.", ephemeral: true });
-
-            const desc = Object.entries(keys)
-                .map(([k, v]) => `🟨 **${k}** — ${v.days} days`)
-                .join("\n");
-
-            const embed = new EmbedBuilder()
-                .setTitle("🔐 Stored Premium Keys")
-                .setColor("Yellow")
-                .setDescription(desc)
-                .setTimestamp();
-
-            return interaction.reply({ embeds: [embed], ephemeral: true });
-        }
-
-        // =================================================
-        // 🗑 REMOVE KEY (OWNER)
-        // =================================================
-        if (sub === "removekey") {
-            if (!isOwner)
-                return interaction.reply({ content: "❌ Only the owner can remove keys.", ephemeral: true });
-
-            const key = interaction.options.getString("key");
-
-            if (!keys[key])
-                return interaction.reply({ content: "❌ Key not found.", ephemeral: true });
-
-            delete keys[key];
-            fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
-
-            return interaction.reply({ content: `🗑️ Key \`${key}\` has been removed.`, ephemeral: true });
-        }
-
-        // =================================================
-        // 🎉 TRIAL SYSTEM
-        // =================================================
+        // ===========================
+        //  SUBCOMMAND: TRIAL
+        // ===========================
         if (sub === "trial") {
-            const uid = interaction.user.id;
-
-            // Cek kalau sudah punya premium
-            if (premium[uid] && premium[uid].expires > Date.now()) {
+            if (premiumDB[guildId]?.trialUsed) {
                 return interaction.reply({
-                    content: "⚠️ You already have premium active.",
+                    content: "❌ Server ini sudah memakai trial sebelumnya.",
                     ephemeral: true
                 });
             }
 
-            // Cek kalau sudah pernah trial
-            if (premium[uid] && premium[uid].trialUsed === true) {
-                return interaction.reply({
-                    content: "❌ You have already used your trial.",
-                    ephemeral: true
-                });
-            }
+            const expires = Date.now() + 12 * 60 * 60 * 1000; // 12 jam
 
-            const trialDays = 3;
-            const expire = Date.now() + trialDays * 86400000;
-
-            premium[uid] = {
-                expires: expire,
-                days: trialDays,
+            premiumDB[guildId] = {
+                expires,
                 trialUsed: true
             };
 
-            fs.writeFileSync(PREMIUM_FILE, JSON.stringify(premium, null, 2));
+            fs.writeFileSync(premiumPath, JSON.stringify(premiumDB, null, 2));
 
-            const embed = new EmbedBuilder()
-                .setTitle("🎁 Premium Trial Activated!")
-                .setColor("Blue")
-                .addFields(
-                    { name: "Duration", value: `${trialDays} days` },
-                    { name: "Expires At", value: `<t:${Math.floor(expire / 1000)}:F>` }
-                )
-                .setTimestamp();
-
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({
+                content: "🎉 Trial premium 12 jam berhasil diaktifkan!",
+            });
         }
 
-        // =================================================
-        // 🎟 REDEEM KEY
-        // =================================================
+        // ===========================
+        //  SUBCOMMAND: ADD (Owner/Admin)
+        // ===========================
+        if (sub === "add") {
+            if (!isOwner && !isAdminCommand) {
+                return interaction.reply({
+                    content: "❌ Kamu bukan Owner/Admin Command.",
+                    ephemeral: true
+                });
+            }
+
+            const duration = interaction.options.getString("duration");
+            const now = Date.now();
+            let expires = now;
+
+            if (duration === "1d") expires += 86400000;
+            else if (duration === "7d") expires += 604800000;
+            else if (duration === "30d") expires += 2592000000;
+            else if (duration === "lifetime") expires = 0;
+
+            premiumDB[guildId] = {
+                expires,
+                trialUsed: premiumDB[guildId]?.trialUsed || false
+            };
+
+            fs.writeFileSync(premiumPath, JSON.stringify(premiumDB, null, 2));
+
+            return interaction.reply({
+                content: `✅ Premium berhasil ditambahkan! Durasi: **${duration}**`
+            });
+        }
+
+        // ===========================
+        //  SUBCOMMAND: ADDKEY
+        // ===========================
+        if (sub === "addkey") {
+            if (!isOwner && !isAdminCommand) {
+                return interaction.reply({
+                    content: "❌ Hanya owner/admin command.",
+                    ephemeral: true
+                });
+            }
+
+            const duration = interaction.options.getString("duration");
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let key = "";
+
+            for (let i = 0; i < 20; i++)
+                key += chars[Math.floor(Math.random() * chars.length)];
+
+            keysDB[key] = {
+                duration,
+                used: false
+            };
+
+            fs.writeFileSync(keysPath, JSON.stringify(keysDB, null, 2));
+
+            return interaction.reply({
+                content: `✅ Key berhasil dibuat!\n\`\`\`${key}\`\`\`\nDurasi: **${duration}**`,
+                ephemeral: true
+            });
+        }
+
+        // ===========================
+        //  SUBCOMMAND: REDEEM
+        // ===========================
         if (sub === "redeem") {
             const key = interaction.options.getString("key");
 
-            if (!keys[key]) {
-                return interaction.reply({ content: "❌ Invalid or expired key.", ephemeral: true });
+            if (!keysDB[key]) {
+                return interaction.reply({ content: "❌ Key tidak valid.", ephemeral: true });
+            }
+            if (keysDB[key].used) {
+                return interaction.reply({ content: "❌ Key sudah digunakan.", ephemeral: true });
             }
 
-            const days = keys[key].days;
-            const expire = Date.now() + days * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            let expires = now;
 
-            premium[interaction.user.id] = {
-                expires: expire,
-                days,
-                trialUsed: true
+            if (keysDB[key].duration === "1d") expires += 86400000;
+            else if (keysDB[key].duration === "7d") expires += 604800000;
+            else if (keysDB[key].duration === "30d") expires += 2592000000;
+            else if (keysDB[key].duration === "lifetime") expires = 0;
+
+            premiumDB[guildId] = {
+                expires,
+                trialUsed: premiumDB[guildId]?.trialUsed || false
             };
 
-            fs.writeFileSync(PREMIUM_FILE, JSON.stringify(premium, null, 2));
+            keysDB[key].used = true;
 
-            delete keys[key];
-            fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
+            fs.writeFileSync(premiumPath, JSON.stringify(premiumDB, null, 2));
+            fs.writeFileSync(keysPath, JSON.stringify(keysDB, null, 2));
 
-            const embed = new EmbedBuilder()
-                .setTitle("🎉 Premium Activated!")
-                .setColor("Green")
-                .addFields(
-                    { name: "Duration", value: `${days} days` },
-                    { name: "Expires At", value: `<t:${Math.floor(expire / 1000)}:F>` }
-                )
-                .setTimestamp();
+            return interaction.reply({
+                content: `🎉 Premium berhasil diaktifkan!\nDurasi: **${keysDB[key].duration}**`
+            });
+        }
 
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+        // ===========================
+        //  SUBCOMMAND: KEYLIST
+        // ===========================
+        if (sub === "keylist") {
+            if (!isOwner && !isAdminCommand) {
+                return interaction.reply({ content: "❌ Tidak ada akses.", ephemeral: true });
+            }
+
+            let text = "📜 **Daftar Keys:**\n\n";
+
+            for (const key in keysDB) {
+                text += `\`${key}\` — **${keysDB[key].duration}** — ${keysDB[key].used ? "❌ Used" : "✅ Active"}\n`;
+            }
+
+            return interaction.reply({
+                content: text || "Tidak ada key.",
+                ephemeral: true
+            });
         }
     }
 };
