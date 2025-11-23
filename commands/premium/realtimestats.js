@@ -4,19 +4,21 @@ const path = require('path');
 
 const premiumFile = path.join(__dirname, '../../premium/premium.json');
 const adminsFile = path.join(__dirname, '../../data/admins.json');
-const STATS_FILE = path.join(__dirname, "../../data/realtimeStats.json");
+const statsFile = path.join(__dirname, '../../data/realtimeStats.json');
 
-// Pastikan file realtimeStats.json ada
-if (!fs.existsSync(STATS_FILE)) {
-    fs.writeFileSync(STATS_FILE, JSON.stringify({}, null, 2));
+// buat file realtimeStats.json jika belum ada
+if (!fs.existsSync(statsFile)) {
+    fs.writeFileSync(statsFile, JSON.stringify({}, null, 2));
 }
 
 function isPremium(guildId) {
     if (!fs.existsSync(premiumFile)) return false;
     const data = JSON.parse(fs.readFileSync(premiumFile));
+
     const guild = data[guildId];
     if (!guild) return false;
-    if (guild.expires === 0) return true; // lifetime
+
+    if (guild.expires === 0) return true;
     return Date.now() < guild.expires;
 }
 
@@ -29,10 +31,10 @@ function isCommandAdmin(userId) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('realtimestats')
-        .setDescription('Menampilkan statistik server secara real-time (Premium atau Admin Commands)')
+        .setDescription('Menampilkan statistik server secara real-time (premium/admin command)')
         .addStringOption(opt =>
             opt.setName('messageid')
-                .setDescription('Message ID untuk refresh pesan lama')
+                .setDescription('Message ID untuk refresh pesan')
                 .setRequired(false)
         ),
 
@@ -40,6 +42,7 @@ module.exports = {
         const guild = interaction.guild;
         const guildId = guild.id;
         const userId = interaction.user.id;
+
         const OWNER_ID = process.env.OWNER_ID;
 
         const adminCommand = isCommandAdmin(userId);
@@ -48,56 +51,49 @@ module.exports = {
 
         if (!adminCommand && !premiumServer && !isOwner) {
             return interaction.reply({
-                content: "❌ Kamu tidak punya akses. Hanya **Owner, Admin Command, atau Premium Server**.",
+                content: "❌ Kamu tidak punya akses. Hanya Owner, Admin Command, atau Premium Server.",
                 ephemeral: true
             });
         }
 
         const members = await guild.members.fetch();
-        const humanCount = members.filter(m => !m.user.bot).size;
-        const botCount = members.filter(m => m.user.bot).size;
+        const humans = members.filter(m => !m.user.bot).size;
+        const bots = members.filter(m => m.user.bot).size;
 
         const embed = new EmbedBuilder()
             .setTitle("📊 Realtime Server Stats")
-            .setColor("#808080")
+            .setColor("#3498db")
             .addFields(
-                { name: "👤 Humans", value: `${humanCount}`, inline: true },
-                { name: "🤖 Bots", value: `${botCount}`, inline: true },
-                { name: "📈 Total", value: `${humanCount + botCount}`, inline: true }
+                { name: "👤 Humans", value: `${humans}`, inline: true },
+                { name: "🤖 Bots", value: `${bots}`, inline: true },
+                { name: "📈 Total", value: `${humans + bots}`, inline: true },
             )
-            .setFooter({
-                text: interaction.client.user.username,
-                iconURL: interaction.client.user.displayAvatarURL()
-            })
             .setTimestamp();
 
-        const messageId = interaction.options.getString('messageid');
+        const messageId = interaction.options.getString("messageid");
 
-        // Send new message
+        const fileData = JSON.parse(fs.readFileSync(statsFile));
+
+        // jika tidak ada messageId → buat baru
         if (!messageId) {
-            const sent = await interaction.reply({
-                embeds: [embed],
-                fetchReply: true
-            });
+            const sent = await interaction.reply({ embeds: [embed], fetchReply: true });
 
-            const fileData = JSON.parse(fs.readFileSync(STATS_FILE));
             fileData[guildId] = {
                 channelId: sent.channel.id,
                 messageId: sent.id
             };
-            fs.writeFileSync(STATS_FILE, JSON.stringify(fileData, null, 2));
+
+            fs.writeFileSync(statsFile, JSON.stringify(fileData, null, 2));
 
             return;
         }
 
-        // Refresh existing message
+        // refresh pesan lama
         try {
-            const fileData = JSON.parse(fs.readFileSync(STATS_FILE));
             const data = fileData[guildId];
-
             if (!data) {
                 return interaction.reply({
-                    content: "❌ Data realtimeStats belum tersimpan untuk server ini.",
+                    content: "❌ Belum ada data realtime untuk server ini.",
                     ephemeral: true
                 });
             }
@@ -112,8 +108,7 @@ module.exports = {
                 ephemeral: true
             });
 
-        } catch (err) {
-            console.log(err);
+        } catch (e) {
             return interaction.reply({
                 content: "❌ Gagal refresh. Message ID salah atau pesan tidak ditemukan.",
                 ephemeral: true
