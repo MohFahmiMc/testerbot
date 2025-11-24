@@ -1,89 +1,89 @@
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const axios = require("axios");
-const { AttachmentBuilder, EmbedBuilder } = require("discord.js");
 const FormData = require("form-data");
 
 module.exports = {
-    name: "imgur",
-    description: "Upload gambar ke Imgur dan dapatkan link.",
-    options: [
-        {
-            name: "gambar",
-            description: "Upload gambar.",
-            type: 11, // attachment
-            required: true
-        }
-    ],
+    data: new SlashCommandBuilder()
+        .setName("imgur")
+        .setDescription("Upload gambar ke Imgur dan mendapatkan link.")
+        .addAttachmentOption(opt =>
+            opt.setName("image")
+                .setDescription("Gambar yang ingin kamu upload")
+                .setRequired(true)
+        ),
 
-    run: async (client, interaction) => {
-        const file = interaction.options.getAttachment("gambar");
+    async execute(interaction, client) {
+        const file = interaction.options.getAttachment("image");
 
-        // Validasi format image
-        if (!file.contentType.startsWith("image/")) {
+        if (!file || !file.contentType?.startsWith("image/")) {
             return interaction.reply({
                 content: "❌ File tersebut bukan gambar!",
                 ephemeral: true
             });
         }
 
-        // Kirim embed loading + progres
-        const loadingEmbed = new EmbedBuilder()
-            .setTitle("📤 Uploading Gambar ke Imgur...")
-            .setColor("#FFA500")
+        // Embed progress awal
+        const embed = new EmbedBuilder()
+            .setTitle("📤 Uploading ke Imgur...")
+            .setColor("Orange")
             .setDescription("Progres: **0%**")
             .setThumbnail(client.user.displayAvatarURL())
             .setTimestamp();
 
-        const msg = await interaction.reply({ embeds: [loadingEmbed], fetchReply: true });
+        const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
 
-        // Fungsi update progres palsu (karena Imgur anon tidak punya progres asli)
-        async function updateProgress(percent) {
-            loadingEmbed.setDescription(`Progres: **${percent}%**`);
-            await msg.edit({ embeds: [loadingEmbed] });
-        }
+        const updateProgress = async (p) => {
+            embed.setDescription(`Progres: **${p}%**`);
+            await msg.edit({ embeds: [embed] });
+        };
 
-        // Simulasi progres upload
-        await updateProgress(20);
-        await new Promise(r => setTimeout(r, 500));
-        await updateProgress(45);
-        await new Promise(r => setTimeout(r, 500));
-        await updateProgress(70);
-        await new Promise(r => setTimeout(r, 400));
-        await updateProgress(90);
+        // Fake progress (karena Imgur tidak support real-time progress)
+        await updateProgress(20); await new Promise(r => setTimeout(r, 250));
+        await updateProgress(55); await new Promise(r => setTimeout(r, 250));
+        await updateProgress(80); await new Promise(r => setTimeout(r, 250));
 
         try {
-            // Upload ke Imgur (tanpa API key)
-            const form = new FormData();
-            form.append("image", await axios.get(file.url, { responseType: "arraybuffer" }).then(r => Buffer.from(r.data)));
+            // Download file
+            const imgBuffer = Buffer.from(
+                (await axios.get(file.url, { responseType: "arraybuffer" })).data
+            );
 
+            const form = new FormData();
+            form.append("image", imgBuffer);
+
+            // Upload ke Imgur (anonymous API Client-ID)
             const upload = await axios.post("https://api.imgur.com/3/image", form, {
                 headers: {
                     ...form.getHeaders(),
-                    Authorization: "Client-ID 73487f1368e6420" // PUBLIC CLIENT-ID (gratis)
-                }
+                    Authorization: "Client-ID 73487f1368e6420"
+                },
             });
 
             const link = upload.data.data.link;
 
             await updateProgress(100);
 
-            const resultEmbed = new EmbedBuilder()
-                .setTitle("✅ Berhasil Upload ke Imgur!")
-                .setColor("#00FF7F")
-                .setThumbnail(client.user.displayAvatarURL())
+            const finish = new EmbedBuilder()
+                .setTitle("✅ Upload Berhasil!")
+                .setColor("Green")
                 .addFields(
                     { name: "📎 Link Gambar", value: link },
                     { name: "🖼 Nama File", value: file.name }
                 )
                 .setImage(link)
-                .setFooter({ text: `Diminta oleh ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+                .setThumbnail(client.user.displayAvatarURL())
+                .setFooter({
+                    text: `Diminta oleh ${interaction.user.username}`,
+                    iconURL: interaction.user.displayAvatarURL()
+                })
                 .setTimestamp();
 
-            return msg.edit({ embeds: [resultEmbed] });
+            return msg.edit({ embeds: [finish] });
 
-        } catch (e) {
-            console.log(e);
+        } catch (err) {
+            console.error("Imgur Upload Error:", err);
             return msg.edit({
-                content: "❌ Gagal upload ke Imgur!",
+                content: "❌ Upload gagal.",
                 embeds: []
             });
         }
