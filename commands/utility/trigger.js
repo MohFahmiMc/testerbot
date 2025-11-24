@@ -1,84 +1,114 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-const triggersPath = path.join(__dirname, "../data/triggers.json");
+const OWNER_ID = process.env.OWNER_ID;
+const ADMIN_FILE = path.join(__dirname, "../../data/admins.json");
+const TRIGGERS_FILE = path.join(__dirname, "../../data/triggers.json");
 
-// Pastikan file triggers.json ada
-if (!fs.existsSync(triggersPath)) fs.writeFileSync(triggersPath, "{}");
+// Ensure files exist
+if (!fs.existsSync(ADMIN_FILE)) fs.writeFileSync(ADMIN_FILE, JSON.stringify({ admins: [] }, null, 2));
+if (!fs.existsSync(TRIGGERS_FILE)) fs.writeFileSync(TRIGGERS_FILE, JSON.stringify({}, null, 2));
 
+// Utility functions
+function loadAdmins() {
+    return JSON.parse(fs.readFileSync(ADMIN_FILE));
+}
+
+function saveTriggers(data) {
+    fs.writeFileSync(TRIGGERS_FILE, JSON.stringify(data, null, 2));
+}
+
+function loadTriggers() {
+    return JSON.parse(fs.readFileSync(TRIGGERS_FILE));
+}
+
+function canManageTrigger(userId, guildOwnerId) {
+    const admins = loadAdmins();
+    return userId === OWNER_ID || admins.admins.includes(userId) || userId === guildOwnerId;
+}
+
+// Export command
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("trigger")
-        .setDescription("Manage triggers for automatic replies")
-        .addStringOption(option => 
-            option.setName("action")
-                .setDescription("Action: add, rm, list")
-                .setRequired(true))
-        .addStringOption(option => 
-            option.setName("trigger")
-                .setDescription("Trigger text (required for add/rm)"))
-        .addStringOption(option => 
-            option.setName("chat")
-                .setDescription("Chat reply (required for add)")),
+        .setDescription("Manage server triggers (add/remove/list)")
+        .addSubcommand(sub =>
+            sub.setName("add")
+                .setDescription("Add a new trigger")
+                .addStringOption(opt => opt.setName("trigger").setDescription("Trigger keyword").setRequired(true))
+                .addStringOption(opt => opt.setName("response").setDescription("Bot response").setRequired(true))
+        )
+        .addSubcommand(sub =>
+            sub.setName("remove")
+                .setDescription("Remove a trigger")
+                .addStringOption(opt => opt.setName("trigger").setDescription("Trigger keyword to remove").setRequired(true))
+        )
+        .addSubcommand(sub =>
+            sub.setName("list")
+                .setDescription("List all triggers for this server")),
 
     async execute(interaction) {
-        const action = interaction.options.getString("action").toLowerCase();
-        const triggerText = interaction.options.getString("trigger");
-        const chatText = interaction.options.getString("chat");
-
-        const data = JSON.parse(fs.readFileSync(triggersPath));
-
+        const sub = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
-        if (!data[guildId]) data[guildId] = {};
+        const userId = interaction.user.id;
 
-        if (action === "add") {
-            if (!triggerText || !chatText) return interaction.reply({ content: "❌ Please provide both trigger and chat.", ephemeral: true });
-            data[guildId][triggerText] = chatText;
-            fs.writeFileSync(triggersPath, JSON.stringify(data, null, 2));
-            return interaction.reply({ content: `✅ Trigger added: "${triggerText}" → "${chatText}"`, ephemeral: true });
+        if (!canManageTrigger(userId, interaction.guild.ownerId)) {
+            return interaction.reply({ content: "❌ Only Bot Owner, Admin Bot, or Server Owner can manage triggers.", ephemeral: true });
         }
 
-        if (action === "rm") {
-            if (!triggerText) return interaction.reply({ content: "❌ Please provide trigger to remove.", ephemeral: true });
-            if (!data[guildId][triggerText]) return interaction.reply({ content: "❌ Trigger not found.", ephemeral: true });
-            delete data[guildId][triggerText];
-            fs.writeFileSync(triggersPath, JSON.stringify(data, null, 2));
-            return interaction.reply({ content: `✅ Trigger removed: "${triggerText}"`, ephemeral: true });
+        const triggers = loadTriggers();
+        if (!triggers[guildId]) triggers[guildId] = {};
+
+        if (sub === "add") {
+            const keyword = interaction.options.getString("trigger");
+            const response = interaction.options.getString("response");
+
+            triggers[guildId][keyword] = response;
+            saveTriggers(triggers);
+
+            return interaction.reply({ content: `✅ Trigger \`${keyword}\` added with response \`${response}\``, ephemeral: true });
         }
 
-        if (action === "list") {
-            const triggers = Object.keys(data[guildId]);
-            if (!triggers.length) return interaction.reply({ content: "⚠️ No triggers found.", ephemeral: true });
+        if (sub === "remove") {
+            const keyword = interaction.options.getString("trigger");
 
-            const embed = new EmbedBuilder()
-                .setTitle(`Trigger List for ${interaction.guild.name}`)
-                .setDescription(triggers.map(t => `**Trigger:** ${t} → **Reply:** ${data[guildId][t]}`).join("\n"))
-                .setColor("Green")
-                .setTimestamp();
+            if (!triggers[guildId][keyword]) {
+                return interaction.reply({ content: "❌ Trigger not found.", ephemeral: true });
+            }
 
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            delete triggers[guildId][keyword];
+            saveTriggers(triggers);
+
+            return interaction.reply({ content: `🗑️ Trigger \`${keyword}\` removed.`, ephemeral: true });
         }
 
-        return interaction.reply({ content: "❌ Invalid action. Use add, rm, or list.", ephemeral: true });
-    }
-};
+        if (sub === "list") {
+            const serverTriggers = triggers[guildId];
+            if (!serverTriggers || Object.keys(serverTriggers).length === 0) {
+                return interaction.reply({ content: "📭 No triggers set for this server.", ephemeral: true });
+            }
 
-// Listening messages for triggers (paste this in bot.js)
-module.exports.listenTrigger = (client) => {
-    const triggersData = JSON.parse(fs.readFileSync(triggersPath));
+            const list = Object.entries(serverTriggers)
+                .map(([k, v]) => `**${k}** → ${v}`)
+                .join("\n");
 
-    client.on("messageCreate", async message => {
-        if (message.author.bot) return;
-        const guildId = message.guild.id;
-        if (!triggersData[guildId]) return;
+            return interaction.reply({ content: `📋 Triggers for this server:\n${list}`, ephemeral: true });
+        }
+    },
 
-        const triggers = triggersData[guildId];
-        for (const key in triggers) {
-            if (message.content.toLowerCase().includes(key.toLowerCase())) {
-                await message.reply({ content: triggers[key] });
-                break; // hanya trigger pertama yang cocok
+    // Event handler for message auto-reply
+    async handleMessage(message) {
+        if (!message.guild || message.author.bot) return;
+
+        const triggers = loadTriggers();
+        const guildTriggers = triggers[message.guild.id];
+        if (!guildTriggers) return;
+
+        for (const [keyword, response] of Object.entries(guildTriggers)) {
+            if (message.content.toLowerCase().includes(keyword.toLowerCase())) {
+                return message.channel.send(response);
             }
         }
-    });
+    }
 };
