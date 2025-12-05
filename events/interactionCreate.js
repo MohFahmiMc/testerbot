@@ -1,89 +1,79 @@
 const { EmbedBuilder } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
+
+const dataPath = path.join(__dirname, "../giveaways/data.json");
+
+function loadData() {
+    if (!fs.existsSync(dataPath)) {
+        fs.writeFileSync(dataPath, JSON.stringify({ giveaways: [] }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(dataPath, "utf8"));
+}
+
+function saveData(data) {
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+}
 
 module.exports = {
     name: "interactionCreate",
 
     async execute(interaction, client) {
-
-        // ---------------------------
-        // 1. Slash Command Handler
-        // ---------------------------
+        // =====================
+        // SLASH COMMAND
+        // =====================
         if (interaction.isChatInputCommand()) {
-
             const command = client.commands.get(interaction.commandName);
-            if (!command) return;
+
+            if (!command) {
+                return interaction.reply({
+                    content: "❌ This command is not available.",
+                    ephemeral: true,
+                });
+            }
 
             try {
                 await command.execute(interaction, client);
             } catch (err) {
                 console.error(err);
 
-                const embed = new EmbedBuilder()
-                    .setTitle("⚠️ Command Error")
-                    .setDescription(
-                        "The command failed to execute.\n" +
-                        "If this issue continues, please join our support server:\n" +
-                        "🔗 **https://discord.gg/FkvM362RJu**"
-                    )
-                    .setColor("Red")
-                    .setThumbnail(client.user.displayAvatarURL());
-
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.editReply({ embeds: [embed], ephemeral: true });
-                } else {
-                    await interaction.reply({ embeds: [embed], ephemeral: true });
-                }
+                return interaction.reply({
+                    content: "⚠️ An error occurred. Join support: https://discord.gg/FkvM362RJu",
+                    ephemeral: true,
+                });
             }
-
-            return;
         }
 
-        // ---------------------------
-        // 2. Button Handler
-        // ---------------------------
+        // =====================
+        // BUTTON (Giveaway join)
+        // =====================
         if (interaction.isButton()) {
-            const button = client.buttons.get(interaction.customId);
-            if (button) {
-                try {
-                    await button.execute(interaction, client);
-                } catch (err) {
-                    console.error(err);
-                }
+            if (!interaction.customId.startsWith("gw_join_")) return;
+
+            const id = interaction.customId.replace("gw_join_", "");
+            const data = loadData();
+            const gw = data.giveaways.find((g) => g.id === id);
+
+            if (!gw) {
+                return interaction.reply({ content: "❌ Giveaway not found.", ephemeral: true });
             }
 
-            // Giveaway buttons (join, leave, etc)
-            if (interaction.customId.startsWith("gway_")) {
-                const handler = require("../utils/giveawayButtonHandler");
-                return handler(interaction, client);
+            if (gw.paused) {
+                return interaction.reply({
+                    content: "⏸️ This giveaway is currently paused.",
+                    ephemeral: true,
+                });
             }
 
-            return;
+            if (!gw.entrants.includes(interaction.user.id)) {
+                gw.entrants.push(interaction.user.id);
+                saveData(data);
+            }
+
+            return interaction.reply({
+                content: "🎉 You joined the giveaway!",
+                ephemeral: true,
+            });
         }
-
-        // ---------------------------
-        // 3. Select Menu Handler
-        // ---------------------------
-        if (interaction.isStringSelectMenu()) {
-
-            if (interaction.customId.startsWith("gway_select")) {
-                const handler = require("../utils/giveawaySelectHandler");
-                return handler(interaction, client);
-            }
-
-            return;
-        }
-
-        // ---------------------------
-        // 4. Modal Handler
-        // ---------------------------
-        if (interaction.isModalSubmit()) {
-
-            if (interaction.customId.startsWith("gway_modal")) {
-                const handler = require("../utils/giveawayModalHandler");
-                return handler(interaction, client);
-            }
-
-            return;
-        }
-    }
+    },
 };
