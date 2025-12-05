@@ -1,9 +1,4 @@
-const {
-    Client,
-    GatewayIntentBits,
-    Partials,
-    Collection
-} = require("discord.js");
+const { Client, GatewayIntentBits, Partials, Collection } = require("discord.js");
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -18,12 +13,16 @@ const client = new Client({
     partials: [Partials.Channel]
 });
 
+// Error handling global
+process.on("unhandledRejection", console.error);
+process.on("uncaughtException", console.error);
+
 // Collections
 client.commands = new Collection();
 client.buttons = new Collection();
 client.giveaways = new Collection();
 
-// Auto load commands
+// Load commands (fun, moderation, utility, giveaway)
 const commandsPath = path.join(__dirname, "commands");
 for (const folder of fs.readdirSync(commandsPath)) {
     const folderPath = path.join(commandsPath, folder);
@@ -34,7 +33,7 @@ for (const folder of fs.readdirSync(commandsPath)) {
     }
 }
 
-// Auto load events
+// Load events
 const eventsPath = path.join(__dirname, "events");
 for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith(".js"))) {
     const event = require(path.join(eventsPath, file));
