@@ -25,7 +25,7 @@ module.exports = {
         const repo = process.env.GH_REPO;
 
         if (!token || !owner || !repo) {
-            return interaction.editReply("❌ Missing GH_TOKEN, GH_OWNER, GH_REPO in `.env`");
+            return interaction.editReply("❌ Missing GH_TOKEN, GH_OWNER, or GH_REPO in `.env`");
         }
 
         const commitsURL = `https://api.github.com/repos/${owner}/${repo}/commits`;
@@ -47,17 +47,16 @@ module.exports = {
             return interaction.editReply("❌ No commits were found.");
         }
 
-        // Format commit list (keep up to 50)
         const formatted = commits.slice(0, 50).map(c => ({
             message: c.commit.message,
             date: c.commit.author.date,
             url: c.html_url,
         }));
 
-        // Save to data file
+        // Save to JSON
         fs.writeFileSync(UPDATES_FILE, JSON.stringify(formatted, null, 2));
 
-        // Pagination state
+        // Pagination
         let page = 1;
         const perPage = 5;
         const maxPage = Math.ceil(formatted.length / perPage);
@@ -73,7 +72,7 @@ module.exports = {
             const start = (pageNumber - 1) * perPage;
             const pageItems = formatted.slice(start, start + perPage);
 
-            pageItems.forEach((c) => {
+            pageItems.forEach(c => {
                 embed.addFields({
                     name: `📌 ${c.message.split("\n")[0]}`,
                     value: `🔗 [View Commit](${c.url})\n🕒 ${new Date(c.date).toLocaleString()}`,
@@ -91,7 +90,6 @@ module.exports = {
                     .setStyle(ButtonStyle.Primary)
                     .setLabel("⬅ Previous")
                     .setDisabled(page === 1),
-
                 new ButtonBuilder()
                     .setCustomId("next_update")
                     .setStyle(ButtonStyle.Primary)
@@ -100,39 +98,25 @@ module.exports = {
             );
         };
 
-        let message = await interaction.editReply({
+        const message = await interaction.editReply({
             embeds: [buildEmbed(page)],
             components: [buildButtons()]
         });
 
-        // Collector
-        const collector = message.createMessageComponentCollector({
-            time: 10 * 60 * 1000 // 10 minutes
-        });
+        const collector = message.createMessageComponentCollector({ time: 10 * 60 * 1000 });
 
-        collector.on("collect", async (btn) => {
-            if (btn.user.id !== interaction.user.id) {
-                return btn.reply({ content: "❌ Only the command user can use these buttons!", ephemeral: true });
-            }
+        collector.on("collect", async btn => {
+            if (btn.user.id !== interaction.user.id)
+                return btn.reply({ content: "❌ Only the command user can use buttons!", ephemeral: true });
 
-            if (btn.customId === "next_update" && page < maxPage) {
-                page++;
-            }
-            if (btn.customId === "prev_update" && page > 1) {
-                page--;
-            }
+            if (btn.customId === "next_update" && page < maxPage) page++;
+            if (btn.customId === "prev_update" && page > 1) page--;
 
-            await btn.update({
-                embeds: [buildEmbed(page)],
-                components: [buildButtons()]
-            });
+            await btn.update({ embeds: [buildEmbed(page)], components: [buildButtons()] });
         });
 
         collector.on("end", () => {
-            // Disable buttons after timeout
-            message.edit({
-                components: []
-            }).catch(() => {});
+            message.edit({ components: [] }).catch(() => {});
         });
     },
 };

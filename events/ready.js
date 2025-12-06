@@ -1,29 +1,32 @@
 module.exports = {
-    name: "ready", // <- WAJIB 'ready' BUKAN 'clientReady'
+    name: "ready", // HARUS ready
     once: true,
-
     async execute(client) {
         console.log(`✅ ${client.user.tag} is online! Developer: ${process.env.GH_OWNER}`);
 
         const messages = [
-            "Scarily Bot is active 👻",
+            () => `Serving ${client.guilds.cache.size} servers 🌐`,
             "Join our support server!",
-            () => `Serving over ${client.guilds.cache.size} servers 🌐`,
             "Fun, Moderation & Utility Commands",
-            `Developer: ${process.env.GH_OWNER}`
+            `Developer: ${process.env.GH_OWNER}`,
+            "Scarily Bot is active 👻"
         ];
 
         let index = 0;
 
-        // Rotating presence every 5 seconds
+        // Update presence setiap 5 detik
         setInterval(() => {
-            let msg = messages[index];
-            if (typeof msg === "function") msg = msg();
+            try {
+                let msg = messages[index];
+                if (typeof msg === "function") msg = msg();
 
-            client.user.setActivity(msg, { type: 0 }) // 0 = Playing
-                .catch(err => console.error("Presence error:", err));
+                client.user.setActivity(msg, { type: 0 }) // 0 = PLAYING
+                    .catch(err => console.error("SetActivity error:", err));
 
-            index = (index + 1) % messages.length;
+                index = (index + 1) % messages.length;
+            } catch (e) {
+                console.error("Presence interval error:", e);
+            }
         }, 5000);
     }
 };
