@@ -1,20 +1,29 @@
 module.exports = {
-    name: "ready",
+    name: "ready", // <- WAJIB 'ready' BUKAN 'clientReady'
     once: true,
-    execute(client) {
 
-        // Set Activity
-        client.user.setActivity("Zephyr Giveaway", {
-            type: 0 // Playing
-        });
+    async execute(client) {
+        console.log(`✅ ${client.user.tag} is online! Developer: ${process.env.GH_OWNER}`);
 
-        // Log di console
-        console.log(`✅ Logged in as ${client.user.tag}`);
-        console.log(`📌 Connected to ${client.guilds.cache.size} servers!`);
+        const messages = [
+            "Scarily Bot is active 👻",
+            "Join our support server!",
+            () => `Serving over ${client.guilds.cache.size} servers 🌐`,
+            "Fun, Moderation & Utility Commands",
+            `Developer: ${process.env.GH_OWNER}`
+        ];
 
-        // Kalau ingin tampilkan list server
-        client.guilds.cache.forEach(guild => {
-            console.log(`- ${guild.name} (${guild.id})`);
-        });
+        let index = 0;
+
+        // Rotating presence every 5 seconds
+        setInterval(() => {
+            let msg = messages[index];
+            if (typeof msg === "function") msg = msg();
+
+            client.user.setActivity(msg, { type: 0 }) // 0 = Playing
+                .catch(err => console.error("Presence error:", err));
+
+            index = (index + 1) % messages.length;
+        }, 5000);
     }
 };
