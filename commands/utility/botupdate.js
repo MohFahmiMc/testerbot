@@ -1,11 +1,4 @@
-const {
-    SlashCommandBuilder,
-    EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle
-} = require("discord.js");
-
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -15,108 +8,98 @@ const UPDATES_FILE = path.join(__dirname, "../../data/updates.json");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("botupdate")
-        .setDescription("Show all bot updates from GitHub with pagination."),
+        .setDescription("Show bot updates with version, changes and date."),
 
     async execute(interaction, client) {
         await interaction.deferReply();
 
-        const token = process.env.GH_TOKEN;
-        const owner = process.env.GH_OWNER;
-        const repo = process.env.GH_REPO;
+        if (!fs.existsSync(UPDATES_FILE)) fs.writeFileSync(UPDATES_FILE, JSON.stringify([]));
 
-        if (!token || !owner || !repo) {
-            return interaction.editReply("❌ Missing GH_TOKEN, GH_OWNER, or GH_REPO in `.env`");
-        }
+        let updates = JSON.parse(fs.readFileSync(UPDATES_FILE, "utf8"));
 
-        const commitsURL = `https://api.github.com/repos/${owner}/${repo}/commits`;
+        if (!Array.isArray(updates)) updates = [];
 
-        let commits;
-        try {
-            const res = await fetch(commitsURL, {
-                headers: { Authorization: `token ${token}` }
-            });
-            commits = await res.json();
+        // Auto-increment version (v12.21 → v12.22)
+        const lastVersion = updates.length ? updates[0].version : "v0.0";
+        const versionParts = lastVersion.replace("v", "").split(".").map(n => parseInt(n));
+        const newVersion = `v${versionParts[0]}.${versionParts[1] + 1}`;
 
-            if (!res.ok) throw new Error("GitHub API error");
-        } catch (err) {
-            console.error(err);
-            return interaction.editReply("❌ Failed to fetch commits from GitHub API.");
-        }
-
-        if (!Array.isArray(commits) || commits.length === 0) {
-            return interaction.editReply("❌ No commits were found.");
-        }
-
-        const formatted = commits.slice(0, 50).map(c => ({
-            message: c.commit.message,
-            date: c.commit.author.date,
-            url: c.html_url,
-        }));
-
-        // Save to JSON
-        fs.writeFileSync(UPDATES_FILE, JSON.stringify(formatted, null, 2));
+        // Jika ingin auto-add update saat menjalankan command, bisa uncomment ini:
+        /*
+        updates.unshift({
+            version: newVersion,
+            title: "Auto Update",
+            changes: ["Auto increment version, check new changes."],
+            date: new Date().toISOString()
+        });
+        fs.writeFileSync(UPDATES_FILE, JSON.stringify(updates, null, 2));
+        */
 
         // Pagination
-        let page = 1;
+        let page = 0;
         const perPage = 5;
-        const maxPage = Math.ceil(formatted.length / perPage);
+        const totalPages = Math.ceil(updates.length / perPage);
 
-        const buildEmbed = (pageNumber) => {
+        const generateEmbed = (pg) => {
             const embed = new EmbedBuilder()
-                .setTitle("📦 Bot Updates (GitHub Commits)")
+                .setTitle("Bot Updates")
                 .setColor("#00FFFF")
-                .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
-                .setFooter({ text: `Page ${pageNumber} / ${maxPage} | Powered by GitHub` })
+                .setFooter({ text: `Page ${pg + 1} / ${totalPages}` })
                 .setTimestamp();
 
-            const start = (pageNumber - 1) * perPage;
-            const pageItems = formatted.slice(start, start + perPage);
+            const start = pg * perPage;
+            const end = start + perPage;
+            const currentUpdates = updates.slice(start, end);
 
-            pageItems.forEach(c => {
+            currentUpdates.forEach(u => {
                 embed.addFields({
-                    name: `📌 ${c.message.split("\n")[0]}`,
-                    value: `🔗 [View Commit](${c.url})\n🕒 ${new Date(c.date).toLocaleString()}`,
-                    inline: false,
+                    name: `Update ${u.version || "vUnknown"} - ${u.title || ""}`,
+                    value: `${u.changes.map(c => `+ ${c}`).join("\n")}\nDate: ${new Date(u.date).toLocaleString()}`,
+                    inline: false
                 });
             });
 
             return embed;
         };
 
-        const buildButtons = () => {
-            return new ActionRowBuilder().addComponents(
+        // Buttons
+        const row = new ActionRowBuilder()
+            .addComponents(
                 new ButtonBuilder()
-                    .setCustomId("prev_update")
-                    .setStyle(ButtonStyle.Primary)
+                    .setCustomId("prev")
                     .setLabel("⬅ Previous")
-                    .setDisabled(page === 1),
-                new ButtonBuilder()
-                    .setCustomId("next_update")
                     .setStyle(ButtonStyle.Primary)
+                    .setDisabled(true),
+                new ButtonBuilder()
+                    .setCustomId("next")
                     .setLabel("Next ➡")
-                    .setDisabled(page === maxPage)
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(totalPages <= 1)
             );
-        };
 
-        const message = await interaction.editReply({
-            embeds: [buildEmbed(page)],
-            components: [buildButtons()]
-        });
+        const msg = await interaction.editReply({ embeds: [generateEmbed(page)], components: [row] });
 
-        const collector = message.createMessageComponentCollector({ time: 10 * 60 * 1000 });
+        const collector = msg.createMessageComponentCollector({ time: 2 * 60 * 1000 });
 
-        collector.on("collect", async btn => {
-            if (btn.user.id !== interaction.user.id)
-                return btn.reply({ content: "❌ Only the command user can use buttons!", ephemeral: true });
+        collector.on("collect", i => {
+            if (i.user.id !== interaction.user.id)
+                return i.reply({ content: "❌ You can't use this button.", ephemeral: true });
 
-            if (btn.customId === "next_update" && page < maxPage) page++;
-            if (btn.customId === "prev_update" && page > 1) page--;
+            if (i.customId === "next") page++;
+            else if (i.customId === "prev") page--;
 
-            await btn.update({ embeds: [buildEmbed(page)], components: [buildButtons()] });
+            if (page < 0) page = 0;
+            if (page >= totalPages) page = totalPages - 1;
+
+            row.components[0].setDisabled(page === 0);
+            row.components[1].setDisabled(page === totalPages - 1);
+
+            i.update({ embeds: [generateEmbed(page)], components: [row] });
         });
 
         collector.on("end", () => {
-            message.edit({ components: [] }).catch(() => {});
+            row.components.forEach(b => b.setDisabled(true));
+            msg.edit({ components: [row] }).catch(() => {});
         });
-    },
+    }
 };
