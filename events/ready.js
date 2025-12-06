@@ -4,13 +4,16 @@ module.exports = {
     async execute(client) {
         console.log(`✅ ${client.user.tag} is online! Developer: ${process.env.GH_OWNER}`);
 
-        // Set bot status ke Do Not Disturb
-        client.user.setStatus("dnd").catch(err => console.error("SetStatus error:", err));
+        // Pastikan bot DND
+        client.user.setPresence({
+            activities: [{ name: "Starting up...", type: 0 }],
+            status: "dnd"
+        }).catch(console.error);
 
-        // Daftar messages untuk rotating
+        // Daftar messages
         const messages = [
-            () => `Serving ${client.guilds.cache.size} servers`, // realtime server count
-            "Join our support server", // static
+            () => `Serving ${client.guilds.cache.size} servers`,
+            "Join our support server",
             "Fun, Moderation & Utility Commands",
             () => `Developer: ${process.env.GH_OWNER}`,
             "Scarily Bot is active"
@@ -18,19 +21,33 @@ module.exports = {
 
         let index = 0;
 
-        // Interval 5 detik untuk berganti status playing
-        setInterval(() => {
-            try {
-                let msg = messages[index];
-                if (typeof msg === "function") msg = msg();
+        const updateActivity = () => {
+            let msg = messages[index];
+            if (typeof msg === "function") msg = msg();
+            client.user.setActivity(msg, { type: 0 }).catch(console.error);
+            client.user.setStatus("dnd").catch(console.error);
+            index = (index + 1) % messages.length;
+        };
 
-                client.user.setActivity(msg, { type: 0 }) // 0 = PLAYING
-                    .catch(err => console.error("SetActivity error:", err));
+        // Update activity setiap 5 detik
+        setInterval(updateActivity, 5000);
+        updateActivity(); // langsung update pertama kali
 
-                index = (index + 1) % messages.length;
-            } catch (e) {
-                console.error("Presence interval error:", e);
-            }
-        }, 5000);
+        // ========================
+        // Real-time server count
+        // ========================
+        client.on("guildCreate", () => updateActivity());
+        client.on("guildDelete", () => updateActivity());
+
+        // ========================
+        // Railway keep-alive friendly
+        // ========================
+        if (process.env.RAILWAY) {
+            console.log("✅ Running on Railway hosting, keeping presence alive.");
+            // Optional: bisa ping sendiri atau pakai interval supaya Railway tidak sleep
+            setInterval(() => {
+                client.user.setStatus("dnd").catch(() => {});
+            }, 10 * 60 * 1000); // setiap 10 menit
+        }
     }
 };
