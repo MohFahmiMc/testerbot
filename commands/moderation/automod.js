@@ -7,8 +7,8 @@ const CONFIG_PATH = path.join(__dirname, "../../utils/automodConfig.json");
 
 function loadConfig() {
     if (!fs.existsSync(CONFIG_PATH)) fs.writeFileSync(CONFIG_PATH, JSON.stringify({
-        linkAutomod: true,
-        allowedRoles: ["@moderation","@owner"],
+        linkAutomod: false,
+        allowedRoles: ["@Moderation","@Owner"],
         whitelistDomains: [],
         spam: { enabled: true, messagesWindow: 5000, messageThreshold: 5, muteMinutes: 10 },
         logChannel: null
