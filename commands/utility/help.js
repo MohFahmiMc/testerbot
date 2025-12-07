@@ -9,7 +9,7 @@ module.exports = {
 
     async execute(interaction) {
         const commandsPath = path.join(__dirname, "..");
-        const categories = ["fun", "moderation", "utility", "premium"];
+        const categories = ["fun", "moderation", "utility", "suggestion", "music"];
         const embed = new EmbedBuilder()
             .setTitle("📚 Bot Commands")
             .setColor("Grey")
