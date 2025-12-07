@@ -3,15 +3,15 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('invite')
-        .setDescription('Dapatkan link untuk mengundang bot ke server kamu!'),
+        .setDescription('Get the link to invite the bot to your server!'),
 
     async execute(interaction) {
 
         const embed = new EmbedBuilder()
-            .setTitle('🔗 Undang Bot ke Server Kamu!')
-            .setDescription('Klik tombol di bawah untuk menambahkan bot atau masuk ke support server.')
+            .setTitle('🔗 Invite the Bot')
+            .setDescription('Use the buttons below to invite the bot or join the support server.')
             .setColor('#2f3136')
-            .setFooter({ text: 'Made by Zephyr Bot', iconURL: interaction.client.user.displayAvatarURL() })
+            .setFooter({ text: 'Zephyr Bot • Powered by Discord.js', iconURL: interaction.client.user.displayAvatarURL() })
             .setTimestamp();
 
         const row = new ActionRowBuilder()
