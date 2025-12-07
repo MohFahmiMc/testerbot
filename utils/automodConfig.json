@@ -1,8 +1,8 @@
 {
-  "linkAutomod": true,
+  "linkAutomod": false,
   "allowedRoles": [
-    "@moderation",
-    "@owner"
+    "@Moderation",
+    "@Owner"
   ],
   "whitelistDomains": [],
   "spam": {

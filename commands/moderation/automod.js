@@ -10,7 +10,7 @@ function loadConfig() {
         linkAutomod: false,
         allowedRoles: ["@Moderation","@Owner"],
         whitelistDomains: [],
-        spam: { enabled: true, messagesWindow: 5000, messageThreshold: 5, muteMinutes: 10 },
+        spam: { enabled: false, messagesWindow: 5000, messageThreshold: 5, muteMinutes: 10 },
         logChannel: null
     }, null, 2));
     return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
