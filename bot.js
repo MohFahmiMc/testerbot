@@ -1,10 +1,10 @@
-// bot.js — FINAL FIXED VERSION
 const {
     Client,
     GatewayIntentBits,
     Partials,
     Collection
 } = require("discord.js");
+
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -15,15 +15,22 @@ const path = require("path");
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences,  // <- WAJIB supaya setActivity berjalan
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences // <- WAJIB AGAR PLAYING MUNCUL
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildVoiceStates
     ],
-    partials: [Partials.Channel]
+    partials: [
+        Partials.Channel,
+        Partials.Message,
+        Partials.Reaction,
+        Partials.User
+    ]
 });
 
-// Global error handler
+// Error handler global
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);
 
@@ -39,13 +46,15 @@ const commandsPath = path.join(__dirname, "commands");
 
 for (const folder of fs.readdirSync(commandsPath)) {
     const folderPath = path.join(commandsPath, folder);
+    const files = fs.readdirSync(folderPath).filter(f => f.endsWith(".js"));
 
-    for (const file of fs
-        .readdirSync(folderPath)
-        .filter((f) => f.endsWith(".js"))) {
-
+    for (const file of files) {
         const command = require(path.join(folderPath, file));
-        if (!command.data || !command.execute) continue;
+
+        if (!command.data || !command.execute) {
+            console.warn(`Command ${file} missing "data" or "execute". Skipped.`);
+            continue;
+        }
 
         client.commands.set(command.data.name, command);
     }
@@ -55,11 +64,9 @@ for (const folder of fs.readdirSync(commandsPath)) {
 //  LOAD EVENTS
 // =============================
 const eventsPath = path.join(__dirname, "events");
+const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith(".js"));
 
-for (const file of fs
-    .readdirSync(eventsPath)
-    .filter((f) => f.endsWith(".js"))) {
-
+for (const file of eventFiles) {
     const event = require(path.join(eventsPath, file));
 
     if (event.once) {

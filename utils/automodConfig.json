@@ -1,0 +1,12 @@
+{
+  "linkAutomod": true,
+  "allowedRoles": ["@moderation","@owner"],
+  "whitelistDomains": [],
+  "spam": {
+    "enabled": true,
+    "messagesWindow": 5000,
+    "messageThreshold": 5,
+    "muteMinutes": 10
+  },
+  "logChannel": null
+}
