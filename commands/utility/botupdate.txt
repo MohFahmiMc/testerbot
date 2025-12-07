@@ -1,10 +1,11 @@
-const {
-    SlashCommandBuilder,
-    EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle
+const { 
+    SlashCommandBuilder, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle 
 } = require("discord.js");
+
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -13,7 +14,7 @@ const UPDATES_FILE = path.join(__dirname, "../../data/updates.json");
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName("botupdate")
+        .setName("botupdatee")
         .setDescription("Show all bot updates with pagination."),
 
     async execute(interaction) {
@@ -46,9 +47,10 @@ module.exports = {
         // Parse commits → updates
         let updates = commits.map((c, i) => ({
             version: `v${commits.length - i}`,
-            title: c.commit.message,
+            title: c.commit.message.split("\n")[0],
             category: detectCategory(c.commit.message),
-            date: new Date(c.commit.author.date).toLocaleString()
+            date: new Date(c.commit.author.date).toLocaleString(),
+            url: c.html_url
         }));
 
         // Save JSON
@@ -56,7 +58,7 @@ module.exports = {
 
         // Pagination
         let page = 0;
-        const perPage = 3; // lebih nyaman baca 3 commit per halaman
+        const perPage = 5;
         const totalPages = Math.ceil(updates.length / perPage);
 
         const render = (p) => {
@@ -64,15 +66,15 @@ module.exports = {
             const pageItems = updates.slice(start, start + perPage);
 
             const embed = new EmbedBuilder()
-                .setTitle("📜 Bot Update History")
+                .setTitle("Bot Update History")
                 .setColor("#0099ff")
                 .setFooter({ text: `Page ${p + 1} of ${totalPages}` })
                 .setTimestamp();
 
             pageItems.forEach(up => {
                 embed.addFields({
-                    name: `${up.version} • ${up.category}`,
-                    value: `\`\`\`${up.title}\`\`\`\n🗓 ${up.date}`
+                    name: `${up.version} • ${up.category}: ${up.title}`,
+                    value: `Date: ${up.date}\n${up.url}`
                 });
             });
 

@@ -1,0 +1,14 @@
+const fs = require("fs");
+const path = require("path");
+
+const statsPath = path.join(__dirname, "../../data/commandStats.json");
+function loadStats() { /* sama seperti di atas */ }
+function saveStats(data) { /* sama seperti di atas */ }
+
+let stats = loadStats();
+const cmdName = "namaCommand"; // sesuaikan nama command
+stats[cmdName] = stats[cmdName] || { total: 0, servers: {} };
+stats[cmdName].total++;
+stats[cmdName].servers[interaction.guild?.name || "DM"] = 
+    (stats[cmdName].servers[interaction.guild?.name || "DM"] || 0) + 1;
+saveStats(stats);
