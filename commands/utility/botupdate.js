@@ -1,4 +1,11 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { 
+    SlashCommandBuilder, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle 
+} = require("discord.js");
+
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -8,98 +15,139 @@ const UPDATES_FILE = path.join(__dirname, "../../data/updates.json");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("botupdate")
-        .setDescription("Show bot updates with version, changes and date."),
+        .setDescription("Show all bot updates with pagination."),
 
-    async execute(interaction, client) {
+    async execute(interaction) {
         await interaction.deferReply();
 
-        if (!fs.existsSync(UPDATES_FILE)) fs.writeFileSync(UPDATES_FILE, JSON.stringify([]));
+        const token = process.env.GH_TOKEN;
+        const owner = process.env.GH_OWNER;
+        const repo = process.env.GH_REPO;
 
-        let updates = JSON.parse(fs.readFileSync(UPDATES_FILE, "utf8"));
+        if (!token || !owner || !repo) {
+            return interaction.editReply("GitHub configuration missing (GH_TOKEN, GH_OWNER, GH_REPO).");
+        }
 
-        if (!Array.isArray(updates)) updates = [];
+        // Fetch commits
+        const url = `https://api.github.com/repos/${owner}/${repo}/commits`;
 
-        // Auto-increment version (v12.21 → v12.22)
-        const lastVersion = updates.length ? updates[0].version : "v0.0";
-        const versionParts = lastVersion.replace("v", "").split(".").map(n => parseInt(n));
-        const newVersion = `v${versionParts[0]}.${versionParts[1] + 1}`;
+        let commits;
+        try {
+            const res = await fetch(url, {
+                headers: { Authorization: `token ${token}` }
+            });
 
-        // Jika ingin auto-add update saat menjalankan command, bisa uncomment ini:
-        /*
-        updates.unshift({
-            version: newVersion,
-            title: "Auto Update",
-            changes: ["Auto increment version, check new changes."],
-            date: new Date().toISOString()
-        });
+            if (!res.ok) throw new Error("GitHub API error");
+            commits = await res.json();
+        } catch (e) {
+            console.error(e);
+            return interaction.editReply("Failed to fetch commits from GitHub.");
+        }
+
+        // Parse commits → updates
+        let updates = commits.map((c, i) => ({
+            version: `v${commits.length - i}`,
+            title: c.commit.message.split("\n")[0],
+            category: detectCategory(c.commit.message),
+            date: new Date(c.commit.author.date).toLocaleString(),
+            url: c.html_url
+        }));
+
+        // Save JSON
         fs.writeFileSync(UPDATES_FILE, JSON.stringify(updates, null, 2));
-        */
 
         // Pagination
         let page = 0;
         const perPage = 5;
         const totalPages = Math.ceil(updates.length / perPage);
 
-        const generateEmbed = (pg) => {
+        const render = (p) => {
+            const start = p * perPage;
+            const pageItems = updates.slice(start, start + perPage);
+
             const embed = new EmbedBuilder()
-                .setTitle("Bot Updates")
-                .setColor("#00FFFF")
-                .setFooter({ text: `Page ${pg + 1} / ${totalPages}` })
+                .setTitle("Bot Update History")
+                .setColor("#0099ff")
+                .setFooter({ text: `Page ${p + 1} of ${totalPages}` })
                 .setTimestamp();
 
-            const start = pg * perPage;
-            const end = start + perPage;
-            const currentUpdates = updates.slice(start, end);
-
-            currentUpdates.forEach(u => {
+            pageItems.forEach(up => {
                 embed.addFields({
-                    name: `Update ${u.version || "vUnknown"} - ${u.title || ""}`,
-                    value: `${u.changes.map(c => `+ ${c}`).join("\n")}\nDate: ${new Date(u.date).toLocaleString()}`,
-                    inline: false
+                    name: `${up.version} • ${up.category}: ${up.title}`,
+                    value: `Date: ${up.date}\n${up.url}`
                 });
             });
 
-            return embed;
-        };
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("first")
+                    .setLabel("First")
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(p === 0),
 
-        // Buttons
-        const row = new ActionRowBuilder()
-            .addComponents(
                 new ButtonBuilder()
                     .setCustomId("prev")
-                    .setLabel("⬅ Previous")
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(true),
+                    .setLabel("Previous")
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(p === 0),
+
                 new ButtonBuilder()
                     .setCustomId("next")
-                    .setLabel("Next ➡")
+                    .setLabel("Next")
                     .setStyle(ButtonStyle.Primary)
-                    .setDisabled(totalPages <= 1)
+                    .setDisabled(p === totalPages - 1),
+
+                new ButtonBuilder()
+                    .setCustomId("last")
+                    .setLabel("Last")
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(p === totalPages - 1)
             );
 
-        const msg = await interaction.editReply({ embeds: [generateEmbed(page)], components: [row] });
+            return { embed, row };
+        };
 
-        const collector = msg.createMessageComponentCollector({ time: 2 * 60 * 1000 });
+        // Send first page
+        let first = render(page);
 
-        collector.on("collect", i => {
-            if (i.user.id !== interaction.user.id)
-                return i.reply({ content: "❌ You can't use this button.", ephemeral: true });
+        const msg = await interaction.editReply({
+            embeds: [first.embed],
+            components: [first.row]
+        });
 
-            if (i.customId === "next") page++;
-            else if (i.customId === "prev") page--;
+        const collector = msg.createMessageComponentCollector({ time: 5 * 60 * 1000 });
 
-            if (page < 0) page = 0;
-            if (page >= totalPages) page = totalPages - 1;
+        collector.on("collect", async (btn) => {
+            if (btn.user.id !== interaction.user.id)
+                return btn.reply({ content: "This button is not for you.", ephemeral: true });
 
-            row.components[0].setDisabled(page === 0);
-            row.components[1].setDisabled(page === totalPages - 1);
+            if (btn.customId === "next") page++;
+            if (btn.customId === "prev") page--;
+            if (btn.customId === "first") page = 0;
+            if (btn.customId === "last") page = totalPages - 1;
 
-            i.update({ embeds: [generateEmbed(page)], components: [row] });
+            const next = render(page);
+
+            await btn.update({
+                embeds: [next.embed],
+                components: [next.row]
+            });
         });
 
         collector.on("end", () => {
-            row.components.forEach(b => b.setDisabled(true));
-            msg.edit({ components: [row] }).catch(() => {});
+            msg.edit({ components: [] }).catch(() => {});
         });
     }
 };
+
+// Auto detect category
+function detectCategory(msg) {
+    msg = msg.toLowerCase();
+
+    if (msg.includes("add") || msg.includes("new")) return "Added";
+    if (msg.includes("fix")) return "Fixed";
+    if (msg.includes("update") || msg.includes("improve")) return "Updated";
+    if (msg.includes("remove") || msg.includes("delete")) return "Removed";
+
+    return "Change";
+}
