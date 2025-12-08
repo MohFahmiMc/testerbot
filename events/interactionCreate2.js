@@ -51,13 +51,8 @@ module.exports = {
             try { await member.roles.add(afkRole); } catch (err) { console.error(err); }
         }
 
-        // Simpan username asli supaya bisa dikembalikan nanti
-        const originalName = member.displayName;
-        let afkName = originalName.startsWith("[AFK] ") ? originalName : `[AFK] ${originalName}`;
-        try { await member.setNickname(afkName, "User is AFK"); } catch (err) { console.error(err); }
-
         // Simpan AFK data
-        afkUsers.set(member.id, { reason, time: Date.now(), originalName });
+        afkUsers.set(member.id, { reason, time: Date.now() });
 
         // Pilih emoji random
         const emoji = utilityEmojis[Math.floor(Math.random() * utilityEmojis.length)];

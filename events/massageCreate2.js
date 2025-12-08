@@ -31,8 +31,6 @@ module.exports = {
         if (message.author.bot) return;
         if (!message.guild) return;
 
-        const member = message.member;
-
         // ===============================
         // 🔹 AFK COMMAND (!afk)
         // ===============================
@@ -54,20 +52,15 @@ module.exports = {
                 }
             }
 
-            // Tambahkan role ke user
-            if (!member.roles.cache.has(afkRole.id)) {
-                try { await member.roles.add(afkRole); } catch (err) { console.error(err); }
+            // Tambahkan role AFK
+            if (!message.member.roles.cache.has(afkRole.id)) {
+                try { await message.member.roles.add(afkRole); } catch (err) { console.error(err); }
             }
 
-            // Simpan username asli supaya bisa dikembalikan nanti
-            const originalName = member.displayName;
-            let afkName = originalName.startsWith("[AFK] ") ? originalName : `[AFK] ${originalName}`;
-            try { await member.setNickname(afkName, "User is AFK"); } catch (err) { console.error(err); }
-
             // Simpan AFK data
-            afkUsers.set(member.id, { reason, time: Date.now(), originalName });
+            afkUsers.set(message.author.id, { reason, time: Date.now() });
 
-            // Pilih emoji random
+            // Pilih emoji random dari list
             const emoji = utilityEmojis[Math.floor(Math.random() * utilityEmojis.length)];
 
             // Embed AFK
@@ -75,7 +68,7 @@ module.exports = {
                 .setColor("GRAY")
                 .setTitle(`${emoji} You are now AFK!`)
                 .setDescription(`**Reason:** ${reason}`)
-                .setFooter({ text: `AFK set by ${member.user.tag}`, iconURL: client.user.displayAvatarURL() })
+                .setFooter({ text: `AFK set by ${message.author.tag}`, iconURL: client.user.displayAvatarURL() })
                 .setTimestamp();
 
             return message.reply({ embeds: [embed] });
@@ -84,17 +77,12 @@ module.exports = {
         // ===============================
         // 🔹 REMOVE AFK IF USER SENDS MESSAGE
         // ===============================
-        if (afkUsers.has(member.id)) {
+        if (afkUsers.has(message.author.id)) {
             const afkRole = message.guild.roles.cache.find(r => r.name === "AFK");
-            if (afkRole && member.roles.cache.has(afkRole.id)) {
-                await member.roles.remove(afkRole).catch(console.error);
+            if (afkRole && message.member.roles.cache.has(afkRole.id)) {
+                await message.member.roles.remove(afkRole).catch(console.error);
             }
-
-            // Kembalikan username asli
-            const originalName = afkUsers.get(member.id).originalName;
-            try { await member.setNickname(originalName, "AFK removed"); } catch (err) { console.error(err); }
-
-            afkUsers.delete(member.id);
+            afkUsers.delete(message.author.id);
 
             message.reply({
                 embeds: [
@@ -129,5 +117,6 @@ module.exports = {
         // 🔹 LINK AUTOMOD + SPAM DETECTION
         // (sama seperti kode sebelumnya)
         // ===============================
+        // ... kode link automod & spam detection lama
     }
 };
