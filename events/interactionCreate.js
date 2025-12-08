@@ -1,4 +1,3 @@
-Ni benerin
 const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
@@ -8,112 +7,119 @@ const statsPath = path.join(__dirname, "../data/commandStats.json");
 
 // ----- GIVEAWAY DATABASE -----
 function loadData() {
-if (!fs.existsSync(dataPath)) {
-fs.writeFileSync(dataPath, JSON.stringify({ giveaways: [] }, null, 2));
-}
-return JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    if (!fs.existsSync(dataPath)) {
+        fs.writeFileSync(dataPath, JSON.stringify({ giveaways: [] }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(dataPath, "utf8"));
 }
 
 function saveData(data) {
-fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
 }
 
 // ----- GLOBAL COMMAND STATS -----
 function loadStats() {
-if (!fs.existsSync(statsPath)) fs.writeFileSync(statsPath, JSON.stringify({}, null, 2));
-return JSON.parse(fs.readFileSync(statsPath, "utf8"));
+    if (!fs.existsSync(statsPath)) fs.writeFileSync(statsPath, JSON.stringify({}, null, 2));
+    return JSON.parse(fs.readFileSync(statsPath, "utf8"));
 }
 
 function saveStats(data) {
-fs.writeFileSync(statsPath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(statsPath, JSON.stringify(data, null, 2));
 }
 
 function trackCommand(commandName, guildName) {
-let stats = loadStats();
-stats[commandName] = stats[commandName] || { total: 0, servers: {} };
-stats[commandName].total++;
-stats[commandName].servers[guildName || "DM"] =
-(stats[commandName].servers[guildName || "DM"] || 0) + 1;
-saveStats(stats);
+    let stats = loadStats();
+    stats[commandName] = stats[commandName] || { total: 0, servers: {} };
+    stats[commandName].total++;
+    stats[commandName].servers[guildName || "DM"] =
+        (stats[commandName].servers[guildName || "DM"] || 0) + 1;
+    saveStats(stats);
 }
 
 // ============================
 module.exports = {
-name: "interactionCreate",
-async execute(interaction, client) {
+    name: "interactionCreate",
+    async execute(interaction, client) {
 
-// ============================  
-    // 🔹 SLASH COMMAND  
-    // ============================  
-    if (interaction.isChatInputCommand()) {  
-        // --- TRACKER ---  
-        trackCommand(interaction.commandName, interaction.guild?.name);  
+        // ============================
+        // 🔹 SLASH COMMAND
+        // ============================
+        if (interaction.isChatInputCommand()) {
 
-        const command = client.commands.get(interaction.commandName);  
+            // --- TRACKER ---
+            trackCommand(interaction.commandName, interaction.guild?.name);
 
-        if (!command) {  
-            return interaction.replied || interaction.deferred  
-                ? interaction.followUp({ content: "Command not found.", ephemeral: true })  
-                : interaction.reply({ content: "Command not found.", ephemeral: true });  
-        }  
+            const command = client.commands.get(interaction.commandName);
 
-        try {  
-            await command.execute(interaction, client);  
-        } catch (err) {  
-            console.error(err);  
-            return interaction.replied || interaction.deferred  
-                ? interaction.followUp({ content: "An unexpected error occurred.", ephemeral: true })  
-                : interaction.reply({ content: "An unexpected error occurred.", ephemeral: true });  
-        }  
-    }  
+            if (!command) {
+                return (interaction.replied || interaction.deferred)
+                    ? interaction.followUp({ content: "Command not found.", ephemeral: true })
+                    : interaction.reply({ content: "Command not found.", ephemeral: true });
+            }
 
-    // ============================  
-    // 🔹 GIVEAWAY JOIN BUTTON  
-    // ============================  
-    if (interaction.isButton() && interaction.customId.startsWith("gw_join_")) {  
-        const id = interaction.customId.replace("gw_join_", "");  
-        const data = loadData();  
-        const gw = data.giveaways.find(g => g.id === id);  
+            try {
+                await command.execute(interaction, client);
+            } catch (err) {
+                console.error(err);
+                return (interaction.replied || interaction.deferred)
+                    ? interaction.followUp({ content: "An unexpected error occurred.", ephemeral: true })
+                    : interaction.reply({ content: "An unexpected error occurred.", ephemeral: true });
+            }
+        }
 
-        if (!gw) return interaction.reply({ content: "Giveaway not found.", ephemeral: true });  
-        if (gw.paused) return interaction.reply({ content: "This giveaway is paused.", ephemeral: true });  
-        if (gw.requiredRoleId && !interaction.member.roles.cache.has(gw.requiredRoleId)) {  
-            return interaction.reply({ content: "You do not meet the role requirement.", ephemeral: true });  
-        }  
+        // ============================
+        // 🔹 GIVEAWAY JOIN BUTTON
+        // ============================
+        if (interaction.isButton() && interaction.customId.startsWith("gw_join_")) {
 
-        if (!gw.entrants.includes(interaction.user.id)) {  
-            gw.entrants.push(interaction.user.id);  
+            const id = interaction.customId.replace("gw_join_", "");
+            const data = loadData();
+            const gw = data.giveaways.find(g => g.id === id);
 
-            if (gw.extraRoleId && interaction.member.roles.cache.has(gw.extraRoleId)) {  
-                gw.entrants.push(interaction.user.id); // extra chance  
-            }  
+            if (!gw) return interaction.reply({ content: "Giveaway not found.", ephemeral: true });
+            if (gw.paused) return interaction.reply({ content: "This giveaway is paused.", ephemeral: true });
 
-            saveData(data);  
+            // Safety: entrants harus ada
+            gw.entrants = gw.entrants || [];
 
-            // --- TRACKER untuk tombol join giveaway ---  
-            trackCommand(`giveaway_join`, interaction.guild?.name);  
-        }  
+            // Safety: role check harus dicek apakah interaction.member ada
+            if (gw.requiredRoleId && interaction.member?.roles && !interaction.member.roles.cache.has(gw.requiredRoleId)) {
+                return interaction.reply({ content: "You do not meet the role requirement.", ephemeral: true });
+            }
 
-        // Update button  
-        try {  
-            const msg = await interaction.channel.messages.fetch(gw.messageId);  
-            if (msg) {  
-                const uniqueCount = new Set(gw.entrants).size;  
+            if (!gw.entrants.includes(interaction.user.id)) {
+                gw.entrants.push(interaction.user.id);
 
-                const button = new ButtonBuilder()  
-                    .setCustomId(`gw_join_${gw.id}`)  
-                    .setLabel(`Join Giveaway (${uniqueCount} joined)`)  
-                    .setStyle(ButtonStyle.Primary);  
+                if (gw.extraRoleId && interaction.member?.roles?.cache.has(gw.extraRoleId)) {
+                    gw.entrants.push(interaction.user.id); // extra chance
+                }
 
-                const row = new ActionRowBuilder().addComponents(button);  
-                await msg.edit({ components: [row] }).catch(() => {});  
-            }  
-        } catch (e) {  
-            console.log("Failed updating button:", e.message);  
-        }  
+                saveData(data);
 
-        return interaction.reply({ content: "You have joined the giveaway.", ephemeral: true });  
-    }  
-}
+                // --- TRACKER ---
+                trackCommand(`giveaway_join`, interaction.guild?.name);
+            }
 
+            // Update button
+            try {
+                const msg = await interaction.channel.messages.fetch(gw.messageId);
+                if (msg) {
+                    const uniqueCount = new Set(gw.entrants).size;
+
+                    const button = new ButtonBuilder()
+                        .setCustomId(`gw_join_${gw.id}`)
+                        .setLabel(`Join Giveaway (${uniqueCount} joined)`)
+                        .setStyle(ButtonStyle.Primary);
+
+                    const row = new ActionRowBuilder().addComponents(button);
+
+                    await msg.edit({ components: [row] }).catch(() => {});
+                }
+            } catch (e) {
+                console.log("Failed updating button:", e.message);
+            }
+
+            return interaction.reply({ content: "You have joined the giveaway.", ephemeral: true });
+        }
+    }
 };
