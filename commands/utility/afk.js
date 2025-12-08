@@ -1,76 +1,68 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { afkUsers } = require("../../utils/afkData"); // <-- AFK storage global
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require("discord.js");
+const { afkUsers } = require("../../utils/afkData");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("afk")
-        .setDescription("Set yourself as AFK until a specific time.")
-        .addStringOption(option =>
-            option.setName("time")
-                .setDescription("Time to return (HH:MM, 24h format).")
-                .setRequired(true))
+        .setDescription("Set your AFK status.")
         .addStringOption(option =>
             option.setName("reason")
-                .setDescription("Reason for AFK")
+                .setDescription("Reason for going AFK")
                 .setRequired(false)
         ),
 
     async execute(interaction) {
-        const time = interaction.options.getString("time");
-        const reason = interaction.options.getString("reason") || "No reason provided";
+        const reason = interaction.options.getString("reason") || "No reason provided.";
 
-        // Parse HH:MM
-        const now = new Date();
-        const [h, m] = time.split(":").map(Number);
-
-        // Build target date
-        const until = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-            h, m, 0
-        );
-
-        if (isNaN(h) || isNaN(m)) {
-            return interaction.reply({
-                content: "❌ Time format must be **HH:MM** (24-hour).",
-                ephemeral: true
-            });
-        }
-
-        if (until <= now) {
-            return interaction.reply({
-                content: "❌ Time must be **in the future**.",
-                ephemeral: true
-            });
-        }
-
+        // Save AFK data
+        const now = Math.floor(Date.now() / 1000);
         afkUsers.set(interaction.user.id, {
-            until,
             reason,
-            setAt: now
+            timestamp: now
         });
 
-        const unix = Math.floor(until.getTime() / 1000);
+        // Auto-create AFK role if missing
+        let afkRole = interaction.guild.roles.cache.find(r => r.name === "AFK");
 
+        if (!afkRole) {
+            afkRole = await interaction.guild.roles.create({
+                name: "AFK",
+                color: "#808080",
+                reason: "Automatically created AFK role"
+            });
+        }
+
+        // Apply role
+        if (!interaction.member.roles.cache.has(afkRole.id)) {
+            await interaction.member.roles.add(afkRole.id);
+        }
+
+        // Auto nickname [AFK]
+        if (interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageNicknames)) {
+            const oldName = interaction.member.displayName;
+            if (!oldName.startsWith("[AFK]")) {
+                await interaction.member.setNickname(`[AFK] ${oldName}`).catch(() => {});
+            }
+        }
+
+        // AFK embed
         const embed = new EmbedBuilder()
-            .setTitle(`🚨 You are now AFK`)
-            .setColor("#2b2d31")
-            .setDescription(
-                `**Return at:** <t:${unix}:t>\n` +
-                `**Local time:** <t:${unix}:F>\n\n` +
-                `**Reason:** ${reason}`
+            .setColor("#808080")
+            .setAuthor({
+                name: `${interaction.user.username} is now AFK`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
+            .setThumbnail(interaction.user.displayAvatarURL())
+            .addFields(
+                { name: "Reason", value: reason },
+                { name: "Since", value: `<t:${now}:F>\n(<t:${now}:R>)` }
             )
-            .setFooter({ text: "ScarilyId AFK System" })
+            .setFooter({ text: "AFK System Activated" })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-
-        // Auto remove AFK when time reached
-        setTimeout(() => {
-            if (afkUsers.has(interaction.user.id)) {
-                afkUsers.delete(interaction.user.id);
-            }
-        }, until.getTime() - now.getTime());
+        await interaction.reply({
+            embeds: [embed],
+            ephemeral: true
+        });
     }
 };
