@@ -1,196 +1,131 @@
-// events/messageCreate.js
-const fs = require("fs");
-const path = require("path");
-const ms = require("ms");
-const { EmbedBuilder } = require("discord.js");
+// events/messageCreate.js                                      const fs = require("fs");                                       const path = require("path");
+const ms = require("ms"); // optional but helpful (install ms)
 const { baseEmbed } = require("../utils/embedStyle");
-const { afkUsers } = require("../utils/afkData"); // <--- AFK storage
 
 const CONFIG_PATH = path.join(__dirname, "../utils/automodConfig.json");
 const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
 
-const recentMessages = new Map();
+const recentMessages = new Map(); // { guildId: { userId: [timestamps...] } }
 
-// URL regex
-const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+// simple URL regex
+const URL_REGEX = /(https?://[^\s]+)/i;
 
 module.exports = {
-    name: "messageCreate",
-    async execute(message, client) {
-        if (!message.guild || message.author.bot) return;
+name: "messageCreate",
+async execute(message, client) {
+if (message.author.bot) return;
+if (!message.guild) return;
 
-        // =====================================
-        // 🔥 1. AFK CHECK: User balik dari AFK
-        // =====================================
-        if (afkUsers.has(message.author.id)) {
-            afkUsers.delete(message.author.id);
+const guildId = message.guild.id;  
+    // ---------- LINK AUTOMOD ----------  
+    if (config.linkAutomod) {  
+        const hasLink = URL_REGEX.test(message.content);  
+        if (hasLink) {  
+            // check whitelist  
+            const urls = message.content.match(URL_REGEX) || [];  
+            let allowed = false;  
+            for (const u of urls) {  
+                for (const d of config.whitelistDomains) {  
+                    if (u.includes(d)) allowed = true;  
+                }  
+            }  
 
-            const embed = new EmbedBuilder()
-                .setTitle("Welcome Back!")
-                .setDescription(`You are no longer AFK, **${message.author.username}**`)
-                .setColor("#2b2b2b")
-                .setFooter({ text: "Scarily AFK System" })
-                .setTimestamp();
+            // check allowed roles by name (mention style or plain)  
+            const member = message.member;  
+            if (member) {  
+                for (const r of config.allowedRoles) {  
+                    // r may be "@moderation" or role name. strip leading @ if present  
+                    const roleName = r.startsWith("@") ? r.slice(1) : r;  
+                    if (member.roles.cache.some(role => role.name === roleName)) allowed = true;  
+                }  
+            }  
 
-            message.reply({ embeds: [embed] }).catch(() => {});
-        }
+            if (!allowed) {  
+                try {  
+                    await message.delete();  
+                } catch (e) {}  
+                // warn  
+                try {  
+                    await message.channel.send({ embeds: [ baseEmbed({ title: "Link blocked", description: `User ${message.author.tag} tried to post a link that is not allowed.` }) ] })  
+                        .then(m => setTimeout(() => m.delete().catch(()=>{}), 7000));  
+                } catch (e) {}  
+                // log  
+                if (config.logChannel) {  
+                    const ch = message.guild.channels.cache.get(config.logChannel);  
+                    if (ch) ch.send({ embeds: [ baseEmbed({ title: "Link blocked", description: `User: ${message.author.tag}\nChannel: ${message.channel}\nMessage: ${message.content}` }) ] }).catch(()=>{});  
+                }  
+                return;  
+            }  
+        }  
+    }  
 
-        // =====================================
-        // 🔥 2. AFK CHECK: User mention orang AFK
-        // =====================================
-        if (message.mentions.users.size > 0) {
-            message.mentions.users.forEach(user => {
-                if (afkUsers.has(user.id)) {
-                    const data = afkUsers.get(user.id);
+    // ---------- SPAM DETECTION ----------  
+    if (config.spam && config.spam.enabled) {  
+        const now = Date.now();  
+        const window = config.spam.messagesWindow || 5000;  
+        const threshold = config.spam.messageThreshold || 5;  
 
-                    const unix = Math.floor(data.until.getTime() / 1000); // for <t:timestamp>
+        if (!recentMessages.has(guildId)) recentMessages.set(guildId, new Map());  
+        const guildMap = recentMessages.get(guildId);  
 
-                    const embed = new EmbedBuilder()
-                        .setTitle(`${user.username} is currently AFK`)
-                        .setDescription(
-                            `**⏱ Until:** <t:${unix}:t> (local time)\n` +
-                            `**📝 Reason:** ${data.reason}`
-                        )
-                        .setColor("#3a3a3a")
-                        .setFooter({ text: "Scarily AFK System" })
-                        .setTimestamp();
+        if (!guildMap.has(message.author.id)) guildMap.set(message.author.id, []);  
+        const arr = guildMap.get(message.author.id);  
 
-                    message.reply({ embeds: [embed] }).catch(() => {});
-                }
-            });
-        }
+        // push timestamp and prune older than window  
+        arr.push(now);  
+        while (arr.length && (now - arr[0]) > window) arr.shift();  
 
-        // =====================================
-        // 🔥 3. LINK AUTOMOD
-        // =====================================
-        if (config.linkAutomod) {
-            const hasLink = URL_REGEX.test(message.content);
-            if (hasLink) {
-                const urls = message.content.match(URL_REGEX) || [];
-                let allowed = false;
+        // if threshold exceeded  
+        if (arr.length >= threshold) {  
+            // delete last few messages by user in channel  
+            try {  
+                const fetched = await message.channel.messages.fetch({ limit: 20 });  
+                const tomDelete = fetched.filter(m => m.author.id === message.author.id).map(m => m.id);  
+                for (const id of tomDelete) {  
+                    try { await message.channel.messages.delete(id); } catch(e){ }  
+                }  
+            } catch(e){}  
 
-                // Whitelist
-                for (const u of urls) {
-                    for (const d of config.whitelistDomains) {
-                        if (u.includes(d)) allowed = true;
-                    }
-                }
+            // warn (DM then channel)  
+            try {  
+                await message.author.send("Your messages were detected as spam and were removed. Continued abuse will result in mute.");  
+            } catch(e){}  
 
-                // Allowed roles
-                const member = message.member;
-                if (member) {
-                    for (const r of config.allowedRoles) {
-                        const roleName = r.startsWith("@") ? r.slice(1) : r;
-                        if (member.roles.cache.some(role => role.name === roleName)) {
-                            allowed = true;
-                        }
-                    }
-                }
+            try {  
+                await message.channel.send({ embeds: [ baseEmbed({ title: "User muted (spam)", description: `${message.author.tag} was muted for spamming.` }) ] })  
+                    .then(m => setTimeout(()=>m.delete().catch(()=>{}), 7000));  
+            } catch(e){}  
 
-                // If blocked
-                if (!allowed) {
-                    try { await message.delete(); } catch (e) {}
+            // apply mute role  
+            const guild = message.guild;  
+            let muteRole = guild.roles.cache.find(r => r.name.toLowerCase() === "muted");  
+            if (!muteRole) {  
+                try {  
+                    muteRole = await guild.roles.create({ name: "Muted", reason: "AutoMute for spam", permissions: [] });  
+                    // try to set channel perms  
+                    for (const [id, ch] of guild.channels.cache) {  
+                        try {  
+                            await ch.permissionOverwrites.edit(muteRole, { SendMessages: false, AddReactions: false, Speak: false });  
+                        } catch(e){}  
+                    }  
+                } catch(e){}  
+            }  
+            if (muteRole) {  
+                try {  
+                    const member = message.member;  
+                    await member.roles.add(muteRole, "AutoMuted for spam");  
+                    // unmute after configured minutes  
+                    const minutes = config.spam.muteMinutes || 10;  
+                    setTimeout(async () => {  
+                        try { await member.roles.remove(muteRole, "Auto unmute after spam mute"); } catch(e){}  
+                    }, minutes * 60 * 1000);  
+                } catch(e){}  
+            }  
 
-                    try {
-                        await message.channel.send({
-                            embeds: [
-                                baseEmbed({
-                                    title: "Link Blocked",
-                                    description: `User ${message.author.tag} tried to send a non-allowed link.`
-                                })
-                            ]
-                        }).then(m => setTimeout(() => m.delete().catch(() => {}), 7000));
-                    } catch (e) {}
+            // reset their counter  
+            guildMap.set(message.author.id, []);  
+        }  
+    }  
+}
 
-                    if (config.logChannel) {
-                        const log = message.guild.channels.cache.get(config.logChannel);
-                        if (log) {
-                            log.send({
-                                embeds: [
-                                    baseEmbed({
-                                        title: "Link Blocked",
-                                        description: `User: ${message.author.tag}\nChannel: ${message.channel}\nMessage: ${message.content}`
-                                    })
-                                ]
-                            }).catch(() => {});
-                        }
-                    }
-                    return;
-                }
-            }
-        }
-
-        // =====================================
-        // 🔥 4. SPAM DETECTION
-        // =====================================
-        if (config.spam && config.spam.enabled) {
-            const now = Date.now();
-            const window = config.spam.messagesWindow || 5000;
-            const threshold = config.spam.messageThreshold || 5;
-
-            const guildId = message.guild.id;
-            if (!recentMessages.has(guildId)) recentMessages.set(guildId, new Map());
-            const guildMap = recentMessages.get(guildId);
-
-            if (!guildMap.has(message.author.id)) guildMap.set(message.author.id, []);
-            const arr = guildMap.get(message.author.id);
-
-            arr.push(now);
-            while (arr.length && (now - arr[0]) > window) arr.shift();
-
-            if (arr.length >= threshold) {
-                try {
-                    const fetched = await message.channel.messages.fetch({ limit: 20 });
-                    const toDelete = fetched.filter(m => m.author.id === message.author.id);
-                    for (const msg of toDelete) {
-                        try { await msg.delete(); } catch (e) {}
-                    }
-                } catch (e) {}
-
-                try {
-                    await message.author.send("You were detected spamming. Please slow down.");
-                } catch (e) {}
-
-                try {
-                    await message.channel.send({
-                        embeds: [
-                            baseEmbed({
-                                title: "User Muted (Spam)",
-                                description: `${message.author.tag} was muted for spamming.`
-                            })
-                        ]
-                    }).then(m => setTimeout(() => m.delete().catch(() => {}), 7000));
-                } catch (e) {}
-
-                let muteRole = message.guild.roles.cache.find(r => r.name.toLowerCase() === "muted");
-
-                if (!muteRole) {
-                    try {
-                        muteRole = await message.guild.roles.create({
-                            name: "Muted",
-                            permissions: [],
-                            reason: "AutoMute for spam"
-                        });
-
-                        for (const [id, ch] of message.guild.channels.cache) {
-                            await ch.permissionOverwrites.edit(muteRole, { SendMessages: false, Speak: false });
-                        }
-                    } catch (e) {}
-                }
-
-                if (muteRole) {
-                    try {
-                        await message.member.roles.add(muteRole, "AutoMute Spam");
-                        const minutes = config.spam.muteMinutes || 10;
-
-                        setTimeout(async () => {
-                            try { await message.member.roles.remove(muteRole); } catch (e) {}
-                        }, minutes * 60 * 1000);
-                    } catch (e) {}
-                }
-
-                arr.length = 0;
-            }
-        }
-    }
 };
