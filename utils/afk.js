@@ -97,7 +97,7 @@ async function removeAFK(member, client) {
 
     const embed = new EmbedBuilder()
         .setColor("#607d8b")
-        .setTitle("✅ Welcome back!")
+        .setTitle("Welcome back!")
         .setDescription("You are no longer AFK.")
         .setFooter({ text: `AFK removed`, iconURL: client.user.displayAvatarURL() })
         .setTimestamp();
