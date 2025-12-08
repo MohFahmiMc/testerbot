@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { afkUsers } = require("../utils/afkData"); // <-- AFK storage global
+const { afkUsers } = require("../../utils/afkData"); // <-- AFK storage global
 
 module.exports = {
     data: new SlashCommandBuilder()
