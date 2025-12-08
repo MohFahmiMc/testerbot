@@ -44,7 +44,7 @@ module.exports = {
                 },
                 {
                     name: `${E.servers} Servers`,
-                    value: `${guildCount}`,
+                    value: ``${guildCount}``,
                     inline: true
                 },
                 {
