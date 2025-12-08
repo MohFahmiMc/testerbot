@@ -1,6 +1,7 @@
 const {
     SlashCommandBuilder,
     EmbedBuilder,
+    PermissionFlagsBits
 } = require("discord.js");
 const fetch = require("node-fetch");
 
@@ -10,52 +11,38 @@ module.exports = {
         .setDescription("Utility lengkap untuk mengelola emoji")
         .addSubcommand(sub =>
             sub.setName("steal")
-                .setDescription("Ambil emoji dari server lain atau URL")
+                .setDescription("Ambil banyak emoji dari server lain atau URL")
                 .addStringOption(opt =>
                     opt.setName("emoji")
-                        .setDescription("Emoji custom / URL emoji")
+                        .setDescription("Emoji custom / URL emoji (bisa lebih dari 1)")
                         .setRequired(true)
-                )
-                .addStringOption(opt =>
-                    opt.setName("nama")
-                        .setDescription("Nama emoji (opsional)")
                 )
         )
         .addSubcommand(sub =>
             sub.setName("upload")
                 .setDescription("Upload emoji dari URL")
                 .addStringOption(opt =>
-                    opt.setName("url")
-                        .setDescription("URL gambar emoji")
-                        .setRequired(true)
+                    opt.setName("url").setDescription("URL gambar emoji").setRequired(true)
                 )
                 .addStringOption(opt =>
-                    opt.setName("nama")
-                        .setDescription("Nama emoji")
-                        .setRequired(true)
+                    opt.setName("nama").setDescription("Nama emoji").setRequired(true)
                 )
         )
         .addSubcommand(sub =>
             sub.setName("delete")
                 .setDescription("Hapus emoji dari server")
                 .addStringOption(opt =>
-                    opt.setName("emoji")
-                        .setDescription("Emoji yang ingin dihapus")
-                        .setRequired(true)
+                    opt.setName("emoji").setDescription("Emoji yang ingin dihapus").setRequired(true)
                 )
         )
         .addSubcommand(sub =>
             sub.setName("rename")
                 .setDescription("Rename emoji")
                 .addStringOption(opt =>
-                    opt.setName("emoji")
-                        .setDescription("Emoji yang ingin direname")
-                        .setRequired(true)
+                    opt.setName("emoji").setDescription("Emoji yang ingin direname").setRequired(true)
                 )
                 .addStringOption(opt =>
-                    opt.setName("nama")
-                        .setDescription("Nama baru emoji")
-                        .setRequired(true)
+                    opt.setName("nama").setDescription("Nama baru emoji").setRequired(true)
                 )
         )
         .addSubcommand(sub =>
@@ -66,18 +53,14 @@ module.exports = {
             sub.setName("info")
                 .setDescription("Melihat info detail emoji")
                 .addStringOption(opt =>
-                    opt.setName("emoji")
-                        .setDescription("Emoji custom")
-                        .setRequired(true)
+                    opt.setName("emoji").setDescription("Emoji custom").setRequired(true)
                 )
         )
         .addSubcommand(sub =>
             sub.setName("clone")
                 .setDescription("Clone semua emoji dari server lain menggunakan ID server.")
                 .addStringOption(opt =>
-                    opt.setName("server_id")
-                        .setDescription("ID server asal emoji.")
-                        .setRequired(true)
+                    opt.setName("server_id").setDescription("ID server asal emoji.").setRequired(true)
                 )
         ),
 
@@ -86,7 +69,7 @@ module.exports = {
         const guild = interaction.guild;
 
         // ==========================================================================================
-        // FUNGSI PARSE EMOJI CUSTOM
+        // FUNGSI PARSE EMOJI
         const parseEmoji = (emojiInput) => {
             const regex = /<?(a)?:?(\w{2,32}):(\d{17,20})>?/;
             const match = emojiInput.match(regex);
@@ -101,38 +84,70 @@ module.exports = {
         };
         // ==========================================================================================
 
-        // ========================= STEAL EMOJI =========================
+        // =====================================================================
+        // STEAL MULTIPLE EMOJI
+        // =====================================================================
         if (sub === "steal") {
-            const emojiInput = interaction.options.getString("emoji");
-            const nameInput = interaction.options.getString("nama");
+            const input = interaction.options.getString("emoji");
 
-            const parsed = parseEmoji(emojiInput);
-            let url, name;
+            const items = input.split(/\s+/); // pisah spasi
+            let success = [];
+            let failed = [];
 
-            if (parsed) {
-                url = parsed.url;
-                name = nameInput || parsed.name;
-            } else {
-                url = emojiInput;
-                name = nameInput || "emoji_" + Date.now();
+            await interaction.reply("⏳ **Processing emojis...**");
+
+            for (const item of items) {
+                try {
+                    let parsed = parseEmoji(item);
+                    let url, name;
+
+                    if (parsed) {
+                        url = parsed.url;
+                        name = parsed.name;
+                    } else if (item.startsWith("http")) {
+                        url = item;
+                        name = "emoji_" + Date.now();
+                    } else {
+                        failed.push(item);
+                        continue;
+                    }
+
+                    const img = await fetch(url);
+                    const buffer = Buffer.from(await img.arrayBuffer());
+
+                    const newEmoji = await guild.emojis.create({
+                        attachment: buffer,
+                        name: name
+                    });
+
+                    success.push(newEmoji.toString());
+                } catch {
+                    failed.push(item);
+                }
             }
 
-            try {
-                const img = await fetch(url);
-                const buffer = Buffer.from(await img.arrayBuffer());
+            const embed = new EmbedBuilder()
+                .setTitle("✨ Emoji Stealer Result")
+                .setColor("#ffffff")
+                .addFields(
+                    {
+                        name: "✅ Berhasil",
+                        value: success.length ? success.join(" ") : "*Tidak ada*"
+                    },
+                    {
+                        name: "❌ Gagal",
+                        value: failed.length ? failed.join(" ") : "*Tidak ada*"
+                    }
+                )
+                .setFooter({ text: `Zephyr Emoji Utility • ${interaction.user.username}` })
+                .setTimestamp();
 
-                const newEmoji = await guild.emojis.create({
-                    attachment: buffer,
-                    name: name
-                });
-
-                return interaction.reply(`✅ Emoji berhasil ditambahkan: ${newEmoji}`);
-            } catch (err) {
-                return interaction.reply("❌ Gagal mencuri emoji.");
-            }
+            return interaction.editReply({ embeds: [embed] });
         }
 
-        // ========================= UPLOAD EMOJI =========================
+        // =====================================================================
+        // UPLOAD EMOJI
+        // =====================================================================
         if (sub === "upload") {
             const url = interaction.options.getString("url");
             const name = interaction.options.getString("nama");
@@ -147,12 +162,14 @@ module.exports = {
                 });
 
                 return interaction.reply(`✅ Emoji berhasil diupload: ${uploaded}`);
-            } catch (err) {
+            } catch {
                 return interaction.reply("❌ Gagal upload emoji.");
             }
         }
 
-        // ========================= DELETE EMOJI =========================
+        // =====================================================================
+        // DELETE EMOJI
+        // =====================================================================
         if (sub === "delete") {
             const emojiInput = interaction.options.getString("emoji");
             const parsed = parseEmoji(emojiInput);
@@ -166,7 +183,9 @@ module.exports = {
             return interaction.reply(`🗑️ Emoji **${parsed.name}** berhasil dihapus.`);
         }
 
-        // ========================= RENAME EMOJI =========================
+        // =====================================================================
+        // RENAME EMOJI
+        // =====================================================================
         if (sub === "rename") {
             const emojiInput = interaction.options.getString("emoji");
             const newName = interaction.options.getString("nama");
@@ -182,19 +201,24 @@ module.exports = {
             return interaction.reply(`✏️ Emoji berhasil direname menjadi **${newName}**.`);
         }
 
-        // ========================= LIST EMOJI =========================
+        // =====================================================================
+        // LIST EMOJI
+        // =====================================================================
         if (sub === "list") {
             const emojis = guild.emojis.cache.map(e => e.toString()).join(" ");
 
             const embed = new EmbedBuilder()
-                .setTitle(`Emoji List (${guild.emojis.cache.size})`)
-                .setDescription(emojis || "Tidak ada emoji di server ini.")
-                .setColor("White");
+                .setTitle(`🧩 Emoji List (${guild.emojis.cache.size})`)
+                .setDescription(emojis || "*Tidak ada emoji di server ini.*")
+                .setColor("#ffffff")
+                .setFooter({ text: "Zephyr Emoji Utility" });
 
             return interaction.reply({ embeds: [embed] });
         }
 
-        // ========================= INFO EMOJI =========================
+        // =====================================================================
+        // INFO EMOJI
+        // =====================================================================
         if (sub === "info") {
             const emojiInput = interaction.options.getString("emoji");
             const parsed = parseEmoji(emojiInput);
@@ -205,19 +229,22 @@ module.exports = {
             if (!emoji) return interaction.reply("❌ Emoji tidak ada di server.");
 
             const embed = new EmbedBuilder()
-                .setTitle(`Info Emoji: ${emoji.name}`)
+                .setTitle(`ℹ️ Info Emoji: ${emoji.name}`)
                 .setThumbnail(emoji.url)
                 .addFields(
                     { name: "ID", value: emoji.id, inline: true },
                     { name: "Animated", value: emoji.animated ? "Ya" : "Tidak", inline: true },
                     { name: "URL", value: emoji.url }
                 )
-                .setColor("White");
+                .setColor("#ffffff")
+                .setFooter({ text: "Zephyr Emoji Utility" });
 
             return interaction.reply({ embeds: [embed] });
         }
 
-        // ========================= CLONE EMOJI =========================
+        // =====================================================================
+        // CLONE EMOJI
+        // =====================================================================
         if (sub === "clone") {
             const targetID = interaction.options.getString("server_id");
             const targetGuild = interaction.client.guilds.cache.get(targetID);
@@ -253,26 +280,20 @@ module.exports = {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle("Emoji Clone Result")
-                .setColor("White")
-                .setThumbnail(targetGuild.iconURL({ size: 256 }))
+                .setTitle("🔁 Emoji Clone Result")
+                .setColor("#ffffff")
                 .setDescription(
-`Clone selesai.
+`Clone selesai!
 
-**Dari server:**  
-${targetGuild.name}
+**Server Asal:** ${targetGuild.name}
+**Total Emoji:** ${emojis.size}
+**Berhasil:** ${success}
+**Gagal:** ${failed}
 
-**Total Emoji:**  
-${emojis.size}
-
-**Berhasil:**  
-${success}
-
-**Gagal:**  
-${failed}
-
-> Biasanya gagal karena slot emoji penuh atau ukuran emoji terlalu besar.`
-                );
+> Gagal biasanya karena slot penuh atau ukuran file terlalu besar.`
+                )
+                .setFooter({ text: "Zephyr Emoji Utility" })
+                .setTimestamp();
 
             return interaction.followUp({ embeds: [embed] });
         }
