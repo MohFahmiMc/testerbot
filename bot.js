@@ -87,7 +87,7 @@ client.on("interactionCreate", async (interaction) => {
     if (isModeration) {
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return interaction.reply({
-                content: "❌ You need Administrator permission to use this command.",
+                content: "<:utility8:1357261385947418644> You need Administrator permission to use this command.",
                 ephemeral: true
             });
         }
