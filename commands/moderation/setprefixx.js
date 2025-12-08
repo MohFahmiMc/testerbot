@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { SlashCommandBuilder, PermissionsBitField } = require("discord.js");
 
-const prefixPath = path.join(__dirname, "../../prefixes.json");
+const prefixPath = path.join(__dirname, "../../data/prefixes.json");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,6 +19,9 @@ module.exports = {
             return interaction.reply({ content: "❌ You must be admin!", ephemeral: true });
         }
 
+        await interaction.deferReply({ ephemeral: true });
+
+        // Baca file
         let prefixes = {};
         if (fs.existsSync(prefixPath)) {
             prefixes = JSON.parse(fs.readFileSync(prefixPath, "utf8"));
@@ -26,26 +29,30 @@ module.exports = {
 
         const prefix = interaction.options.getString("prefix");
 
+        // Set prefix untuk guild ini
         prefixes[interaction.guild.id] = prefix;
+
+        // Tulis kembali ke file
         fs.writeFileSync(prefixPath, JSON.stringify(prefixes, null, 2));
 
-        await interaction.reply(`✅ Prefix berhasil diubah menjadi **${prefix}**`);
+        // Balas interaction
+        await interaction.editReply(`✅ Prefix berhasil diubah menjadi **${prefix}**`);
 
         // ===============================
-        // PUSH KE GITHUB
+        // PUSH KE GITHUB (Async)
         // ===============================
-        if (!process.env.GH_TOKEN || !process.env.GH_REPO) {
-            console.log("GH Token tidak ditemukan, skip push.");
-            return;
+        if (process.env.GH_TOKEN && process.env.GH_REPO) {
+            const { exec } = require("child_process");
+
+            exec(`git config --global user.email "system@bot.ai"`);
+            exec(`git config --global user.name "Bot-System"`);
+
+            exec(`git add data/prefixes.json && git commit -m "Update prefix for ${interaction.guild.id}" && git push https://${process.env.GH_TOKEN}@github.com/${process.env.GH_REPO}.git HEAD:main`,
+                (err, stdout, stderr) => {
+                    if (err) console.log("Git push error:", err);
+                    if (stderr) console.log("Git push stderr:", stderr);
+                }
+            );
         }
-
-        const { exec } = require("child_process");
-
-        exec(`git config --global user.email "system@bot.ai"`);
-        exec(`git config --global user.name "Bot-System"`);
-
-        exec(`git add prefixes.json`);
-        exec(`git commit -m "Update prefix"`);
-        exec(`git push https://${process.env.GH_TOKEN}@github.com/${process.env.GH_REPO}.git HEAD:main`);
     }
 };
