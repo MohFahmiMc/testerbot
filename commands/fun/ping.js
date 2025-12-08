@@ -6,7 +6,7 @@ const {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("ping")
-        .setDescription("Cek kecepatan respon bot."),
+        .setDescription("check bot response speed"),
 
     async execute(interaction) {
 
@@ -31,16 +31,16 @@ module.exports = {
             ping1;
 
         const statusText =
-            wsPing <= 80 ? "Sangat Cepat" :
-            wsPing <= 150 ? "Stabil" :
-            "Lambat";
+            wsPing <= 80 ? "very fast" :
+            wsPing <= 150 ? "stable" :
+            "low";
 
         const uptime = formatTime(interaction.client.uptime);
 
         const embed = new EmbedBuilder()
             .setColor("#2b2d31")
             .setTitle(`${crown} Zephyr Ping Status`)
-            .setDescription(`Bot operational. Berikut detail latency:`)
+            .setDescription(`Bot operational. Here are the latency details:`)
             .addFields(
                 {
                     name: `${statusEmoji} WebSocket Ping`,
@@ -77,3 +77,4 @@ function formatTime(ms) {
     const sec = s % 60;
     return `\`${h}h ${m}m ${sec}s\``;
 }
+

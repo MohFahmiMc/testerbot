@@ -8,32 +8,85 @@ module.exports = {
     async execute(interaction) {
         const bot = interaction.client;
 
-        // Ambil info real-time
         const guildCount = bot.guilds.cache.size;
         const userCount = bot.users.cache.size;
         const channelCount = bot.channels.cache.size;
         const totalCommands = bot.commands.size;
         const ping = bot.ws.ping;
 
-        // Embed
+        // Picked emojis from your list
+        const E = {
+            title: "<:ScyEmoji:1361154066767548477>",
+            owner: "<:Developer:1357261458014212116>",
+            servers: "<:utility12:1357261389399593004>",
+            users: "<:utility1:1357261562938790050>",
+            channels: "<:Utility1:1357261430684123218>",
+            commands: "<:utility8:1357261385947418644>",
+            ping: "<:ping1:1447452221699784715>",
+            node: "<:blueutility4:1357261525387182251>",
+            djs: "<:Sussy:1357532313835274280>",
+            support: "<:gmail:1447452231594016889>",
+        };
+
         const embed = new EmbedBuilder()
-            .setTitle(`${bot.user.username} Bot Information`)
-            .setDescription("Here is some detailed information about this bot and its owner.")
-            .setColor(0x5865F2) // Discord blurple
-            .setThumbnail(bot.user.displayAvatarURL()) // bot profile picture
-            .addFields(
-                { name: "Owner", value: `<@${process.env.OWNER_ID}>`, inline: true },
-                { name: "Servers Joined", value: `${guildCount}`, inline: true },
-                { name: "Total Users", value: `${userCount}`, inline: true },
-                { name: "Total Channels", value: `${channelCount}`, inline: true },
-                { name: "Total Commands", value: `${totalCommands}`, inline: true },
-                { name: "Bot Latency", value: `${ping}ms`, inline: true },
-                { name: "Node.js Version", value: `${process.version}`, inline: true },
-                { name: "Discord.js Version", value: `${require("discord.js").version}`, inline: true },
-                { name: "Library", value: "discord.js", inline: true },
-                { name: "Support Server", value: "[Join Here](https://discord.gg/FkvM362RJu)", inline: true }
+            .setColor(0x2b2d31)
+            .setThumbnail(bot.user.displayAvatarURL())
+            .setTitle(`${E.title} About ${bot.user.username}`)
+            .setDescription(
+                `Here is detailed information about **${bot.user.username}**.\n` +
+                `This bot is designed for performance, stability, and modern functionality.`
             )
-            .setFooter({ text: `Zephyr Bot`, iconURL: bot.user.displayAvatarURL() })
+            .addFields(
+                {
+                    name: `${E.owner} Bot Owner`,
+                    value: `<@${process.env.OWNER_ID}>`,
+                    inline: true
+                },
+                {
+                    name: `${E.servers} Servers`,
+                    value: `${guildCount}`,
+                    inline: true
+                },
+                {
+                    name: `${E.users} Users`,
+                    value: `${userCount}`,
+                    inline: true
+                },
+                {
+                    name: `${E.channels} Channels`,
+                    value: `${channelCount}`,
+                    inline: true
+                },
+                {
+                    name: `${E.commands} Commands`,
+                    value: `${totalCommands}`,
+                    inline: true
+                },
+                {
+                    name: `${E.ping} Latency`,
+                    value: `${ping}ms`,
+                    inline: true
+                },
+                {
+                    name: `${E.node} Node.js`,
+                    value: `${process.version}`,
+                    inline: true
+                },
+                {
+                    name: `${E.djs} Discord.js`,
+                    value: `${require("discord.js").version}`,
+                    inline: true
+                },
+                {
+                    name: `${E.support} Support`,
+                    value: `[Join Support Server](https://discord.gg/FkvM362RJu)`,
+                    inline: true
+                }
+            )
+            .setFooter({
+                text: `${bot.user.username} • About Information`,
+                iconURL: bot.user.displayAvatarURL()
+            })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
