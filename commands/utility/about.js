@@ -16,16 +16,16 @@ module.exports = {
 
         // Picked emojis from your list
         const E = {
-            title: "<:ScyEmoji:1361154066767548477>",
-            owner: "<:Developer:1357261458014212116>",
+            title: "<:premium_crown:1357260010303918090>",
+            owner: "<:developer:1447459159649030264>",
             servers: "<:utility12:1357261389399593004>",
             users: "<:utility1:1357261562938790050>",
             channels: "<:Utility1:1357261430684123218>",
-            commands: "<:utility8:1357261385947418644>",
+            commands: "<:Utility1:1357261430684123218>",
             ping: "<:ping1:1447452221699784715>",
             node: "<:blueutility4:1357261525387182251>",
-            djs: "<:Sussy:1357532313835274280>",
-            support: "<:gmail:1447452231594016889>",
+            djs: "<:discord:1447459156436193432>",
+            support: "<:Support:1447452228259549215>",
         };
 
         const embed = new EmbedBuilder()
