@@ -10,14 +10,14 @@ module.exports = {
         // Mode DND
         await client.user.setPresence({
             status: "dnd",
-            activities: [{ name: "Starting up...", type: 0 }]
+            activities: [{ name: "Starting Zephyr....", type: 0 }]
         });
 
         const activities = [
-            () => `Developer: ${developer}`,
-            () => `Serving ${client.guilds.cache.size} servers`,
-            () => `Scarily Bot System`,
-            () => `Join support server`,
+            () => `Developer ${developer}`,
+            () => `Playing ${client.guilds.cache.size} Servers`,
+            () => `Zephyr Utility/Moderation`,
+            () => `Hosting ScarilyId`,
         ];
 
         let i = 0;
