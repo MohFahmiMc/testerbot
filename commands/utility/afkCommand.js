@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { setAFK } = require("../utils/afk.js");
+const { setAFK } = require("../../utils/afk.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
