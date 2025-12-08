@@ -7,9 +7,7 @@ module.exports = {
         if (message.author.bot || !message.guild) return;
         const member = message.member;
 
-        // ===============================
-        // 🔹 Command teks !afk
-        // ===============================
+        // !afk command
         if (message.content.startsWith("!afk")) {
             const reason = message.content.split(" ").slice(1).join(" ") || "AFK";
             const result = await setAFK(member, reason, message.client);
@@ -18,24 +16,20 @@ module.exports = {
             if (result.embed) return message.reply({ embeds: [result.embed] });
         }
 
-        // ===============================
-        // 🔹 Remove AFK if user sends message
-        // ===============================
+        // Remove AFK jika user kirim pesan
         if (isAFK(member)) {
             const embed = await removeAFK(member, message.client);
             if (embed) message.reply({ embeds: [embed] });
         }
 
-        // ===============================
-        // 🔹 Reply if mentioned user is AFK
-        // ===============================
+        // Mention check
         message.mentions.members.forEach(async m => {
             if (isAFK(m)) {
                 const afkData = getAFKData(m);
                 const embed = new EmbedBuilder()
                     .setTitle(`${m.user.tag} is AFK`)
                     .setDescription(`**Reason:** ${afkData.reason}\n**Since:** <t:${Math.floor(afkData.time / 1000)}:R>`)
-                    .setColor("DARK_GRAY")
+                    .setColor("#607d8b")
                     .setFooter({ text: `AFK System`, iconURL: message.client.user.displayAvatarURL() })
                     .setTimestamp();
 

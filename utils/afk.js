@@ -19,9 +19,6 @@ const utilityEmojis = [
 
 /**
  * Set user AFK
- * @param {GuildMember} member 
- * @param {string} reason 
- * @param {Client} client 
  */
 async function setAFK(member, reason = "AFK", client) {
     const guild = member.guild;
@@ -46,25 +43,30 @@ async function setAFK(member, reason = "AFK", client) {
         return { error: "❌ Bot role is not high enough to assign AFK role." };
     }
 
-    // Tambahkan role ke user
+    // Tambahkan role
     if (!member.roles.cache.has(afkRole.id)) {
         try { await member.roles.add(afkRole); } catch (err) { console.error(err); }
     }
 
-    // Simpan username asli
+    // Simpan username asli dan ganti nickname
     const originalName = member.displayName;
-    let afkName = originalName.startsWith("[AFK] ") ? originalName : `[AFK] ${originalName}`;
-    try { await member.setNickname(afkName, "User is AFK"); } catch (err) { console.error(err); }
+    const afkName = originalName.startsWith("[AFK] ") ? originalName : `[AFK] ${originalName}`;
+
+    try {
+        if (member.roles.highest.position < guild.members.me.roles.highest.position) {
+            await member.setNickname(afkName, "User is AFK");
+        }
+    } catch (err) {
+        console.log("Cannot change nickname:", err.message);
+    }
 
     // Simpan AFK data
     afkUsers.set(member.id, { reason, time: Date.now(), originalName });
 
-    // Pilih emoji random
+    // Embed
     const emoji = utilityEmojis[Math.floor(Math.random() * utilityEmojis.length)];
-
-    // Embed keren
     const embed = new EmbedBuilder()
-        .setColor("DARK_GRAY")
+        .setColor("#607d8b")
         .setTitle(`${emoji} You are now AFK!`)
         .setDescription(`**Reason:** ${reason}`)
         .setFooter({ text: `AFK set by ${member.user.tag}`, iconURL: client.user.displayAvatarURL() })
@@ -75,8 +77,6 @@ async function setAFK(member, reason = "AFK", client) {
 
 /**
  * Remove user AFK
- * @param {GuildMember} member 
- * @param {Client} client
  */
 async function removeAFK(member, client) {
     if (!afkUsers.has(member.id)) return null;
@@ -89,14 +89,14 @@ async function removeAFK(member, client) {
         try { await member.roles.remove(afkRole); } catch (err) { console.error(err); }
     }
 
-    // Kembalikan username asli
+    // Kembalikan username
     const originalName = afkUsers.get(member.id).originalName;
-    try { await member.setNickname(originalName, "AFK removed"); } catch (err) { console.error(err); }
+    try { await member.setNickname(originalName, "AFK removed"); } catch (err) {}
 
     afkUsers.delete(member.id);
 
     const embed = new EmbedBuilder()
-        .setColor("GREEN")
+        .setColor("#607d8b")
         .setTitle("✅ Welcome back!")
         .setDescription("You are no longer AFK.")
         .setFooter({ text: `AFK removed`, iconURL: client.user.displayAvatarURL() })
@@ -105,18 +105,10 @@ async function removeAFK(member, client) {
     return embed;
 }
 
-/**
- * Check if member is AFK
- * @param {GuildMember} member 
- */
 function isAFK(member) {
     return afkUsers.has(member.id);
 }
 
-/**
- * Get AFK data
- * @param {GuildMember} member 
- */
 function getAFKData(member) {
     return afkUsers.get(member.id) || null;
 }

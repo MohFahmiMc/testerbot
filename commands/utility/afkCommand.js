@@ -10,13 +10,14 @@ module.exports = {
                 .setDescription("Reason for being AFK")
                 .setRequired(false)
         ),
+
     async execute(interaction) {
         const reason = interaction.options.getString("reason") || "AFK";
         const member = interaction.member;
 
         const result = await setAFK(member, reason, interaction.client);
 
-        if (result.error) return interaction.reply({ content: result.error, ephemeral: true });
-        if (result.embed) return interaction.reply({ embeds: [result.embed] });
+        if (result.error) return interaction.reply({ content: result.error, ephemeral: true, flags: 64 });
+        if (result.embed) return interaction.reply({ embeds: [result.embed], flags: 64 });
     }
 };
