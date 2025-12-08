@@ -32,7 +32,7 @@ async function setAFK(member, reason = "AFK", client) {
         try {
             afkRole = await guild.roles.create({
                 name: "AFK",
-                color: "GRAY",
+                color: "#607d8b",
                 reason: "Role for AFK system"
             });
         } catch (err) {
