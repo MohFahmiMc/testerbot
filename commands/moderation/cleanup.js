@@ -3,17 +3,15 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("disc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("cleanup")
-        .setDescription("Hapus banyak channel atau role sekaligus.")
+        .setDescription("Delete multiple channels and roles at once.")
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addStringOption(opt =>
             opt.setName("channels")
-                .setDescription("List ID channel yang mau dihapus (pisahkan dengan koma).")
-                .setRequired(false)
+                .setDescription("Channel IDs to delete (separate with commas).")
         )
         .addStringOption(opt =>
             opt.setName("roles")
-                .setDescription("List ID role yang mau dihapus (pisahkan dengan koma).")
-                .setRequired(false)
+                .setDescription("Role IDs to delete (separate with commas).")
         ),
 
     async execute(interaction, client) {
@@ -22,7 +20,7 @@ module.exports = {
 
         if (!channelsInput && !rolesInput) {
             return interaction.reply({
-                content: "❌ Kamu harus memilih minimal 1 channel atau 1 role untuk dihapus.",
+                content: "<:WARN:1447849961491529770> You must enter at least one channel ID or role ID.",
                 ephemeral: true
             });
         }
@@ -31,7 +29,7 @@ module.exports = {
         let deletedRoles = [];
 
         // ===========================
-        // HAPUS CHANNEL
+        // DELETE CHANNELS
         // ===========================
         if (channelsInput) {
             const channelIDs = channelsInput.split(",").map(id => id.trim());
@@ -46,7 +44,7 @@ module.exports = {
         }
 
         // ===========================
-        // HAPUS ROLE
+        // DELETE ROLES
         // ===========================
         if (rolesInput) {
             const roleIDs = rolesInput.split(",").map(id => id.trim());
@@ -60,32 +58,31 @@ module.exports = {
             }
         }
 
-        // JAM REALTIME
-        const timeNow = new Date().toLocaleString("id-ID", {
-            timeZone: "Asia/Jakarta"
-        });
-
-        // EMBED KEREN
         const embed = new EmbedBuilder()
-            .setColor("#ff4444")
-            .setTitle("🧹 Cleanup Success!")
-            .setThumbnail(client.user.displayAvatarURL()) // FOTO BOT DI KANAN ATAS
-            .setDescription("Berhasil menghapus resource berikut:")
+            .setColor("#FF5555")
+            .setTitle(`<:utility8:1357261385947418644> Cleanup Summary`)
+            .setThumbnail(client.user.displayAvatarURL())
             .addFields(
                 {
-                    name: "🗑 Channel yang dihapus",
-                    value: deletedChannels.length > 0 ? deletedChannels.join("\n") : "Tidak ada",
+                    name: "🗑️ Deleted Channels",
+                    value: deletedChannels.length > 0 ? deletedChannels.join("\n") : "None",
                     inline: false
                 },
                 {
-                    name: "🗑 Role yang dihapus",
-                    value: deletedRoles.length > 0 ? deletedRoles.join("\n") : "Tidak ada",
+                    name: "🗑️ Deleted Roles",
+                    value: deletedRoles.length > 0 ? deletedRoles.join("\n") : "None",
                     inline: false
                 }
             )
-            .setFooter({ text: `Dijalankan pada ${timeNow}` })
+            .setFooter({
+                text: `Requested by ${interaction.user.tag}`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
             .setTimestamp();
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply({
+            content: "<:blueutility4:1357261525387182251> Cleanup completed successfully!",
+            embeds: [embed]
+        });
     }
 };
