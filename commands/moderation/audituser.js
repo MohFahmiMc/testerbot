@@ -1,67 +1,55 @@
-// commands/moderation/audituser.js
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("audituser")
-        .setDescription("View audit logs for a specific user.")
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addUserOption(opt =>
-            opt.setName("user")
-                .setDescription("Select the user to view logs from")
+        .setDescription("View a user's audit log actions.")
+        .addUserOption(option =>
+            option
+                .setName("user")
+                .setDescription("Select a user to view their audit logs.")
                 .setRequired(true)
-        )
-        .addIntegerOption(opt =>
-            opt.setName("limit")
-                .setDescription("How many logs to display (max 20)")
-                .setRequired(false)
         ),
 
     async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        const guild = interaction.guild;
         const user = interaction.options.getUser("user");
-        const limit = interaction.options.getInteger("limit") || 10;
 
-        if (limit > 20) {
-            return interaction.reply({
-                content: "<:WARN:1447849961491529770> Max limit is **20**.",
-                ephemeral: true
+        const E = {
+            title: "<:premium_crown:1357260010303918090>",
+            user: "<:utility1:1357261562938790050>",
+            action: "<:Utility1:1357261430684123218>",
+            id: "<:blueutility4:1357261525387182251>",
+        };
+
+        const logs = await guild.fetchAuditLogs({ limit: 25 });
+        const userLogs = logs.entries.filter(e => e.executorId === user.id);
+
+        if (!userLogs.size) {
+            return interaction.editReply({
+                content: `${user.tag} has **no audit log actions**.`,
             });
         }
-
-        const logs = await interaction.guild.fetchAuditLogs({ limit: 50 });
-
-        const filtered = logs.entries.filter(entry =>
-            entry.executor?.id === user.id
-        ).first(limit);
-
-        if (!filtered || filtered.length === 0) {
-            return interaction.reply({
-                content: `<:WARN:1447849961491529770> No audit logs found for **${user.tag}**.`,
-                ephemeral: true
-            });
-        }
-
-        const entries = filtered.map(entry => {
-            const target = entry.target?.name || entry.target?.tag || "Unknown";
-
-            return (
-                `**<:blueutility4:1357261525387182251> Action:** ${entry.action}\n` +
-                `**🎯 Target:** ${target}\n` +
-                `**<:yes:1447855754634858608> Time:** <t:${Math.floor(entry.createdTimestamp / 1000)}:R>\n`
-            );
-        }).join("\n──────────────\n");
 
         const embed = new EmbedBuilder()
-            .setColor("#4A90E2")
-            .setTitle(`<:utility8:1357261385947418644> Audit Log — ${user.tag}`)
+            .setColor(0x2b2d31)
+            .setTitle(`${E.title} Audit Logs — ${user.tag}`)
             .setThumbnail(user.displayAvatarURL())
-            .setDescription(entries)
-            .setTimestamp()
-            .setFooter({
-                text: `Requested by ${interaction.user.tag}`,
-                iconURL: interaction.user.displayAvatarURL()
-            });
+            .setDescription(`Here are the recent audit log actions done by **${user.tag}**.`)
+            .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
-    }
+        for (const entry of userLogs.values()) {
+            embed.addFields({
+                name: `${E.action} ${entry.action}`,
+                value:
+                    `${E.id} Target: **${entry.target?.name || entry.target?.tag || "Unknown"}**\n` +
+                    `🕒 <t:${Math.floor(entry.createdTimestamp / 1000)}:R>`,
+                inline: false,
+            });
+        }
+
+        await interaction.editReply({ embeds: [embed] });
+    },
 };

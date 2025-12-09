@@ -3,137 +3,95 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("serverstats")
-        .setDescription("Shows advanced and detailed server statistics"),
+        .setDescription("Displays detailed information about this server."),
 
     async execute(interaction) {
         const guild = interaction.guild;
-        await interaction.deferReply();
 
+        // Emoji set (pakai set yang sama style about.js)
+        const E = {
+            title: "<:premium_crown:1357260010303918090>",
+            owner: "<a:Developer1:1357261458014212116>",
+            members: "<:utility1:1357261562938790050>",
+            boosts: "<:utility12:1357261389399593004>",
+            channels: "<:Utility1:1357261430684123218>",
+            roles: "<:utility1:1357261562938790050>",
+            created: "<:blueutility4:1357261525387182251>",
+            region: "<:discord:1447855769000218724>",
+        };
+
+        // Data server
         const owner = await guild.fetchOwner();
+        const boostCount = guild.premiumSubscriptionCount;
+        const boostLevel = guild.premiumTier;
 
-        // BASIC SERVER DATA
-        const totalMembers = guild.memberCount;
-        const botCount = guild.members.cache.filter(m => m.user.bot).size;
-        const humanCount = totalMembers - botCount;
+        const channels = guild.channels.cache;
+        const textChannels = channels.filter(c => c.type === 0).size;
+        const voiceChannels = channels.filter(c => c.type === 2).size;
+        const threadChannels = channels.filter(c => c.isThread()).size;
 
-        const textChannels = guild.channels.cache.filter(c => c.type === 0).size;
-        const voiceChannels = guild.channels.cache.filter(c => c.type === 2).size;
-        const categories = guild.channels.cache.filter(c => c.type === 4).size;
+        const roleCount = guild.roles.cache.size;
 
-        const roles = guild.roles.cache.size;
+        const memberCount = guild.memberCount;
 
-        const emojiCount = guild.emojis.cache.size;
-        const stickerCount = guild.stickers.cache.size;
+        const createdAt = `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`;
+        const createdAgo = `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
 
-        const boosts = guild.premiumSubscriptionCount;
-        const boostTier = guild.premiumTier;
+        const region = guild.preferredLocale
+            .replace(/-/g, " ")
+            .toUpperCase();
 
-        const createdAt = `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
-
-        // EXTRA FEATURES
-        const afkChannel = guild.afkChannel ? `<#${guild.afkChannelId}>` : "None";
-        const afkTimeout = guild.afkTimeout ? `${guild.afkTimeout}s` : "None";
-
-        const banner = guild.bannerURL({ size: 1024 }) || "No banner";
-        const vanity = guild.vanityURLCode ? `https://discord.gg/${guild.vanityURLCode}` : "None";
-
-        const verification = guild.verificationLevel;
-        const nsfwLevel = guild.nsfwLevel;
-        const locale = guild.preferredLocale;
-
-        // EMBED
         const embed = new EmbedBuilder()
-            .setColor("#4A90E2")
-            .setTitle(`<:utility8:1357261385947418644> Server Statistics`)
+            .setColor(0x2b2d31)
             .setThumbnail(guild.iconURL({ size: 1024 }))
+            .setTitle(`${E.title} Server Stats — ${guild.name}`)
+            .setDescription(`Here is detailed information about **${guild.name}**.`)
             .addFields(
-                // BASIC
-                { name: "📛 Server Name", value: guild.name, inline: false },
-                { name: "👑 Owner", value: `${owner.user.tag}`, inline: true },
-                { name: "📆 Created", value: createdAt, inline: true },
-
-                // MEMBERS
                 {
-                    name: "<:people:1447855732061110406> Members",
+                    name: `${E.owner} Server Owner`,
+                    value: `${owner} (\`${owner.user.tag}\`)`,
+                    inline: true
+                },
+                {
+                    name: `${E.members} Total Members`,
+                    value: `${memberCount}`,
+                    inline: true
+                },
+                {
+                    name: `${E.boosts} Boosts`,
+                    value: `Level: **${boostLevel}**\nBoosts: **${boostCount}**`,
+                    inline: true
+                },
+                {
+                    name: `${E.channels} Channels`,
                     value:
-                    `Total: **${totalMembers}**\n` +
-                    `Humans: **${humanCount}**\n` +
-                    `Bots: **${botCount}**`,
+                        `Text: **${textChannels}**\n` +
+                        `Voice: **${voiceChannels}**\n` +
+                        `Threads: **${threadChannels}**`,
                     inline: true
                 },
-
-                // CHANNELS
                 {
-                    name: "<:box:1447855781205512245> Channels",
-                    value:
-                    `Text: **${textChannels}**\n` +
-                    `Voice: **${voiceChannels}**\n` +
-                    `Categories: **${categories}**`,
+                    name: `${E.roles} Total Roles`,
+                    value: `${roleCount}`,
                     inline: true
                 },
-
-                // ROLES
                 {
-                    name: "<:management:1447855811425468446> Roles",
-                    value: `**${roles}** total`,
+                    name: `${E.created} Created At`,
+                    value: `${createdAt}\n(${createdAgo})`,
                     inline: true
                 },
-
-                // BOOST
                 {
-                    name: "<a:vip:1447855725907804222> Boost",
-                    value:
-                    `Boosts: **${boosts}**\n` +
-                    `Tier: **${boostTier}**`,
+                    name: `${E.region} Region`,
+                    value: `${region}`,
                     inline: true
-                },
-
-                // MEDIA
-                {
-                    name: "<:blueutility4:1357261525387182251> Media",
-                    value:
-                    `Emojis: **${emojiCount}**\n` +
-                    `Stickers: **${stickerCount}**`,
-                    inline: true
-                },
-
-                // AFK
-                {
-                    name: "💤 AFK Settings",
-                    value:
-                    `Channel: ${afkChannel}\n` +
-                    `Timeout: **${afkTimeout}**`,
-                    inline: true
-                },
-
-                // EXTRA SERVER SETTINGS
-                {
-                    name: "⚙️ Server Settings",
-                    value:
-                    `Verification: **${verification}**\n` +
-                    `NSFW Level: **${nsfwLevel}**\n` +
-                    `Locale: **${locale}**`,
-                    inline: true
-                },
-
-                // VANITY + BANNER
-                {
-                    name: "🔗 Vanity URL",
-                    value: `${vanity}`,
-                    inline: false
-                },
-                {
-                    name: "🖼️ Banner",
-                    value: banner === "No banner" ? "No banner" : "[Click to view banner](" + banner + ")",
-                    inline: false
                 }
             )
             .setFooter({
-                text: `Requested by ${interaction.user.tag}`,
-                iconURL: interaction.user.displayAvatarURL()
+                text: `${guild.name} • Server Information`,
+                iconURL: guild.iconURL()
             })
             .setTimestamp();
 
-        return interaction.editReply({ embeds: [embed] });
-    }
+        await interaction.reply({ embeds: [embed] });
+    },
 };

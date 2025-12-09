@@ -3,32 +3,43 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("disc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("lock")
-        .setDescription("Mengunci channel agar tidak bisa mengirim pesan")
+        .setDescription("Lock the current channel so members cannot send messages.")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
     async execute(interaction) {
         const channel = interaction.channel;
 
-        try {
-            // Disable SEND_MESSAGES for @everyone
-            await channel.permissionOverwrites.edit(interaction.guild.id, {
-                SendMessages: false
-            });
+        // Emojis
+        const E = {
+            title: "<:lock1:1447862841448589323>",
+            success: "<:blueutility4:1357261525387182251>",
+            warn: "<:WARN:1447849961491529770>",
+        };
 
-            const embed = new EmbedBuilder()
-                .setColor("#d9534f")
-                .setTitle("🔒 Channel Locked")
-                .setDescription(`Channel **${channel.name}** telah dikunci.\nSekarang hanya staff yang bisa mengirim pesan.`)
-                .setTimestamp();
+        // Apply lock
+        await channel.permissionOverwrites.edit(
+            interaction.guild.roles.everyone,
+            { SendMessages: false }
+        );
 
-            await interaction.reply({ embeds: [embed] });
+        const embed = new EmbedBuilder()
+            .setColor(0x2b2d31)
+            .setTitle(`${E.title} Channel Locked`)
+            .setDescription(`This channel has been locked for all members.`)
+            .addFields({
+                name: "🔒 Status",
+                value: "Members can no longer send messages.",
+                inline: false
+            })
+            .setFooter({
+                text: `Locked by ${interaction.user.tag}`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
+            .setTimestamp();
 
-        } catch (err) {
-            console.error(err);
-            return interaction.reply({
-                content: "❌ Terjadi error saat mengunci channel.",
-                ephemeral: true
-            });
-        }
-    }
+        await interaction.reply({
+            content: `${E.success} Channel locked successfully!`,
+            embeds: [embed]
+        });
+    },
 };

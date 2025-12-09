@@ -1,56 +1,128 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const {
+    SlashCommandBuilder,
+    EmbedBuilder,
+    PermissionFlagsBits
+} = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-const dataPath = path.join(__dirname, "../../data/autoroles.json");
+// === CONFIG PATH ===
+const configPath = path.join(__dirname, "../../data/autorole.json");
 
-// Pastikan folder data ada
-if (!fs.existsSync(path.join(__dirname, "../../data"))) {
-    fs.mkdirSync(path.join(__dirname, "../../data"));
-}
-
-// Load autoroles JSON
-let autoroles = {};
-if (fs.existsSync(dataPath)) {
-    autoroles = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+// Create config file if not exists
+if (!fs.existsSync(configPath)) {
+    fs.writeFileSync(configPath, JSON.stringify({}, null, 2));
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("autorole")
-        .setDescription("Set a role to be automatically given to new members")
-        .addRoleOption(option =>
-            option.setName("role")
-                .setDescription("Role to assign")
-                .setRequired(true)
+        .setDescription("Manage auto role system.")
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addSubcommand(sub =>
+            sub.setName("set")
+                .setDescription("Set the role to auto-assign on join.")
+                .addRoleOption(opt =>
+                    opt.setName("role")
+                        .setDescription("Role to auto-assign.")
+                        .setRequired(true)
+                )
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
+        .addSubcommand(sub =>
+            sub.setName("remove")
+                .setDescription("Disable auto role.")
+        )
+        .addSubcommand(sub =>
+            sub.setName("status")
+                .setDescription("Check current autorole status.")
+        ),
 
     async execute(interaction) {
-        const role = interaction.options.getRole("role");
-        const guildId = interaction.guildId;
+        const sub = interaction.options.getSubcommand();
+        const guildId = interaction.guild.id;
+        const data = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
-        autoroles[guildId] = role.id;
-        fs.writeFileSync(dataPath, JSON.stringify(autoroles, null, 2));
+        // Emojis (sesuai style about.js)
+        const E = {
+            title: "<:utility12:1357261389399593004>",
+            check: "<:blueutility4:1357261525387182251>",
+            warn: "<:WARN:1447849961491529770>",
+            role: "<:utility1:1357261562938790050>",
+        };
 
-        await interaction.reply({ content: `Auto role has been set to ${role.name} for new members.`, ephemeral: true });
-    }
-};
+        // Make embed function (clean like about.js)
+        const baseEmbed = (title) =>
+            new EmbedBuilder()
+                .setColor(0x2b2d31)
+                .setTitle(`${E.title} ${title}`)
+                .setThumbnail(interaction.client.user.displayAvatarURL())
+                .setTimestamp()
+                .setFooter({
+                    text: `Requested by ${interaction.user.tag}`,
+                    iconURL: interaction.user.displayAvatarURL()
+                });
 
-// Event listener untuk member join
-module.exports.autoRoleHandler = (client) => {
-    client.on("guildMemberAdd", async member => {
-        const guildId = member.guild.id;
-        if (!autoroles[guildId]) return;
+        // ========================
+        // SET ROLE
+        // ========================
+        if (sub === "set") {
+            const role = interaction.options.getRole("role");
 
-        const role = member.guild.roles.cache.get(autoroles[guildId]);
-        if (!role) return;
+            data[guildId] = role.id;
+            fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
 
-        try {
-            await member.roles.add(role);
-            console.log(`Added role ${role.name} to ${member.user.tag}`);
-        } catch (err) {
-            console.error(`Failed to add role: ${err}`);
+            const embed = baseEmbed("Auto Role Updated")
+                .addFields({
+                    name: `${E.role} New Auto Role`,
+                    value: `${role}`,
+                    inline: false
+                });
+
+            return interaction.reply({
+                content: `${E.check} Auto role has been successfully set!`,
+                embeds: [embed]
+            });
         }
-    });
+
+        // ========================
+        // REMOVE
+        // ========================
+        if (sub === "remove") {
+            if (!data[guildId]) {
+                return interaction.reply({
+                    content: `${E.warn} No autorole is currently set.`,
+                    ephemeral: true
+                });
+            }
+
+            delete data[guildId];
+            fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
+
+            const embed = baseEmbed("Auto Role Disabled")
+                .setDescription("Autorole has been removed successfully.");
+
+            return interaction.reply({
+                content: `${E.check} Autorole disabled.`,
+                embeds: [embed]
+            });
+        }
+
+        // ========================
+        // STATUS
+        // ========================
+        if (sub === "status") {
+            const roleId = data[guildId];
+
+            const embed = baseEmbed("Auto Role Status")
+                .addFields({
+                    name: `${E.role} Assigned Role`,
+                    value: roleId ? `<@&${roleId}>` : "None",
+                    inline: false
+                });
+
+            return interaction.reply({
+                embeds: [embed]
+            });
+        }
+    }
 };

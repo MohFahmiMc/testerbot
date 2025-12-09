@@ -3,39 +3,42 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("disc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("unlock")
-        .setDescription("Unlock this channel so everyone can chat again.")
+        .setDescription("Unlock the current channel so members can send messages again.")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
     async execute(interaction) {
         const channel = interaction.channel;
 
-        try {
+        // Emojis
+        const E = {
+            title: "<:unlock1:1447862843694073937>",
+            success: "<:blueutility4:1357261525387182251>",
+        };
 
-            await channel.permissionOverwrites.edit(interaction.guild.roles.everyone, {
-                SendMessages: true
-            });
+        // Remove lock
+        await channel.permissionOverwrites.edit(
+            interaction.guild.roles.everyone,
+            { SendMessages: true }
+        );
 
-            const embed = new EmbedBuilder()
-                .setColor("#33cc66")
-                .setTitle("🔓 Channel Unlocked")
-                .setDescription(`This channel has been successfully **unlocked**. Members can now chat again.`)
-                .addFields({
-                    name: "📌 Channel",
-                    value: `${channel}`,
-                    inline: true
-                })
-                .setThumbnail(interaction.guild.iconURL({ size: 256 }))
-                .setFooter({ text: interaction.guild.name })
-                .setTimestamp();
+        const embed = new EmbedBuilder()
+            .setColor(0x2b2d31)
+            .setTitle(`${E.title} Channel Unlocked`)
+            .setDescription(`Members can now send messages again.`)
+            .addFields({
+                name: "🔓 Status",
+                value: "Message sending is now enabled.",
+                inline: false
+            })
+            .setFooter({
+                text: `Unlocked by ${interaction.user.tag}`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
+            .setTimestamp();
 
-            await interaction.reply({ embeds: [embed] });
-
-        } catch (err) {
-            console.error(err);
-            return interaction.reply({
-                content: "❌ An error occurred while trying to unlock this channel.",
-                ephemeral: true
-            });
-        }
-    }
+        await interaction.reply({
+            content: `${E.success} Channel has been unlocked!`,
+            embeds: [embed]
+        });
+    },
 };

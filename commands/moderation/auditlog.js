@@ -1,51 +1,47 @@
-// commands/moderation/auditlog.js
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, AuditLogEvent } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("auditlog")
-        .setDescription("View recent server audit logs.")
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addIntegerOption(opt =>
-            opt.setName("limit")
-                .setDescription("How many logs to display (max 20)")
-                .setRequired(false)
-        ),
+        .setDescription("View the most recent server audit logs."),
 
     async execute(interaction) {
-        const limit = interaction.options.getInteger("limit") || 10;
+        await interaction.deferReply({ ephemeral: true });
 
-        if (limit > 20) {
-            return interaction.reply({
-                content: "<:WARN:1447849961491529770> Max limit is **20**.",
-                ephemeral: true
+        const guild = interaction.guild;
+
+        // Emoji set
+        const E = {
+            title: "<:premium_crown:1357260010303918090>",
+            id: "<:blueutility4:1357261525387182251>",
+            user: "<:utility1:1357261562938790050>",
+            action: "<:Utility1:1357261430684123218>",
+        };
+
+        const logs = await guild.fetchAuditLogs({ limit: 10 });
+        const entries = logs.entries.map(e => e);
+
+        if (!entries.length) {
+            return interaction.editReply("There are no audit logs available.");
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor(0x2b2d31)
+            .setTitle(`${E.title} Recent Audit Logs`)
+            .setDescription(`Here are the **10** latest audit logs in **${guild.name}**.`)
+            .setTimestamp();
+
+        for (const entry of entries) {
+            embed.addFields({
+                name: `${E.action} ${entry.action}`,
+                value:
+                    `${E.user} Executor: **${entry.executor?.tag || "Unknown"}**\n` +
+                    `${E.id} Target: **${entry.target?.name || entry.target?.tag || "Unknown"}**\n` +
+                    `🕒 <t:${Math.floor(entry.createdTimestamp / 1000)}:R>`,
+                inline: false
             });
         }
 
-        const logs = await interaction.guild.fetchAuditLogs({ limit });
-
-        const entries = logs.entries.map(entry => {
-            const executor = entry.executor ? entry.executor.tag : "Unknown";
-            const target = entry.target?.name || entry.target?.tag || "Unknown";
-
-            return (
-                `**<:box:1447855781205512245> Action:** ${entry.action}\n` +
-                `**<:people:1447855732061110406> User:** ${executor}\n` +
-                `**🎯 Target:** ${target}\n` +
-                `**<:yes:1447855754634858608> Time:** <t:${Math.floor(entry.createdTimestamp / 1000)}:R>\n`
-            );
-        }).join("\n──────────────\n");
-
-        const embed = new EmbedBuilder()
-            .setColor("#4A90E2")
-            .setTitle(`<:utility8:1357261385947418644> Server Audit Log`)
-            .setDescription(entries || "No audit logs found.")
-            .setTimestamp()
-            .setFooter({
-                text: `Requested by ${interaction.user.tag}`,
-                iconURL: interaction.user.displayAvatarURL()
-            });
-
-        await interaction.reply({ embeds: [embed] });
-    }
+        await interaction.editReply({ embeds: [embed] });
+    },
 };
