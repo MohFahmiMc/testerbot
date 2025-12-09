@@ -11,14 +11,21 @@ const path = require("path");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Show all bot commands separated with categories."),
+        .setDescription("Show all bot commands separated with categories.")
+        .addStringOption(option =>
+            option.setName("command")
+                .setDescription("Optional: show specific command usage.")
+                .setRequired(false)
+        ),
 
     async execute(interaction) {
         const baseDir = path.join(__dirname, "..");
         const categories = ["fun", "moderation", "utility", "music"];
         let page = 0;
 
-        // Function to load commands of a category
+        const selectedCommand = interaction.options.getString("command")?.toLowerCase();
+
+        // Load commands of a category
         function loadCategoryCommands(category) {
             const categoryPath = path.join(baseDir, category);
             let cmds = [];
@@ -31,14 +38,37 @@ module.exports = {
 
                     cmds.push({
                         name: command.data.name,
-                        description: command.data.description || "No description provided."
+                        description: command.data.description || "No description provided.",
+                        options: command.data.options || []
                     });
                 }
             }
             return cmds;
         }
 
-        // Function to generate embed per page
+        // Load all commands
+        const allCommands = categories.flatMap(cat => loadCategoryCommands(cat).map(cmd => ({ ...cmd, category: cat })));
+
+        // If user wants a specific command
+        if (selectedCommand) {
+            const cmd = allCommands.find(c => c.name.toLowerCase() === selectedCommand);
+            if (!cmd) return interaction.reply({ content: `❌ Command \`${selectedCommand}\` not found.`, ephemeral: true });
+
+            const embed = new EmbedBuilder()
+                .setTitle(`🔹 /${cmd.name}`)
+                .setColor("#2B2D31")
+                .setDescription(cmd.description)
+                .addFields(
+                    { name: "Category", value: cmd.category.toUpperCase(), inline: true },
+                    { name: "Usage", value: `\`/${cmd.name}${cmd.options.map(o => o.required ? ` <${o.name}>` : ` [${o.name}]`).join('')}\``, inline: true }
+                )
+                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        // Pagination embed
         function generateEmbed() {
             const category = categories[page];
             const commands = loadCategoryCommands(category);
@@ -64,41 +94,14 @@ module.exports = {
             return embed;
         }
 
-        // Buttons
-        const getButtons = () => {
-            return new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("first")
-                    .setLabel("⏮ First")
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(page === 0),
+        const getButtons = () => new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("first").setLabel("⏮ First").setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+            new ButtonBuilder().setCustomId("prev").setLabel("◀ Page --").setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+            new ButtonBuilder().setCustomId("next").setLabel("Page ++ ▶").setStyle(ButtonStyle.Secondary).setDisabled(page === categories.length - 1),
+            new ButtonBuilder().setCustomId("last").setLabel("⏭ Last").setStyle(ButtonStyle.Secondary).setDisabled(page === categories.length - 1),
+            new ButtonBuilder().setCustomId("show_all").setLabel("📄 Show All Commands").setStyle(ButtonStyle.Primary)
+        );
 
-                new ButtonBuilder()
-                    .setCustomId("prev")
-                    .setLabel("◀ Page --")
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(page === 0),
-
-                new ButtonBuilder()
-                    .setCustomId("next")
-                    .setLabel("Page ++ ▶")
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(page === categories.length - 1),
-
-                new ButtonBuilder()
-                    .setCustomId("last")
-                    .setLabel("⏭ Last")
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(page === categories.length - 1),
-
-                new ButtonBuilder()
-                    .setCustomId("show_all")
-                    .setLabel("📄 Show All Commands")
-                    .setStyle(ButtonStyle.Primary),
-            );
-        };
-
-        // Send first page
         await interaction.reply({
             embeds: [generateEmbed()],
             components: [getButtons()],
@@ -116,29 +119,19 @@ module.exports = {
             if (i.customId === "next" && page < categories.length - 1) page++;
             if (i.customId === "last") page = categories.length - 1;
 
-            // Show All Commands
             if (i.customId === "show_all") {
                 const all = [];
-
                 for (const category of categories) {
                     const cmds = loadCategoryCommands(category);
                     all.push(`**${category.toUpperCase()}**`);
                     all.push(cmds.map(c => `• \`/${c.name}\` - ${c.description}`).join("\n") || "_No commands_");
-                    all.push(""); 
+                    all.push("");
                 }
 
-                const embed = new EmbedBuilder()
-                    .setTitle("📋 All Commands")
-                    .setColor("#2B2D31")
-                    .setDescription(all.join("\n"));
-
-                return i.update({ embeds: [embed], components: [] });
+                return i.update({ embeds: [new EmbedBuilder().setTitle("📋 All Commands").setColor("#2B2D31").setDescription(all.join("\n"))], components: [] });
             }
 
-            await i.update({
-                embeds: [generateEmbed()],
-                components: [getButtons()]
-            });
+            await i.update({ embeds: [generateEmbed()], components: [getButtons()] });
         });
     }
 };
