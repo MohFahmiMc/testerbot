@@ -40,40 +40,47 @@ module.exports = {
         };
 
         let deletedCount = 0;
-        const targetAmount = amount;
 
         // Progress embed
         const progressEmbed = new EmbedBuilder()
             .setColor(0x2b2d31)
             .setTitle(`${E.title} Clearing Messages`)
-            .setDescription(`Progress: **${deletedCount}/${targetAmount}**`)
+            .setDescription(`Progress: **${deletedCount}/${amount}**`)
             .setTimestamp();
 
         const progressMsg = await interaction.editReply({ embeds: [progressEmbed] });
 
-        // Fetch messages awal
-        let allMessages = await interaction.channel.messages.fetch({ limit: 100 });
-        allMessages = allMessages.filter(m => m.id !== progressMsg.id);
+        // Loop delete
+        while (deletedCount < amount) {
+            const fetchLimit = Math.min(10, amount - deletedCount);
 
-        if (type === "bot") allMessages = allMessages.filter(m => m.author.bot);
-        else if (type === "user") allMessages = allMessages.filter(m => !m.author.bot);
+            let messages = await interaction.channel.messages.fetch({ limit: fetchLimit });
 
-        allMessages = allMessages.first(targetAmount);
+            // FILTER agar progress message TIDAK kehapus
+            messages = messages.filter(m => m.id !== progressMsg.id);
 
-        // Loop delete batch per 10
-        for (let i = 0; i < allMessages.length; i += 10) {
-            const batch = allMessages.slice(i, i + 10);
-            const deleted = await interaction.channel.bulkDelete(batch, true);
+            if (type === "bot")
+                messages = messages.filter(m => m.author.bot);
+            else if (type === "user")
+                messages = messages.filter(m => !m.author.bot);
+            // type = all → semua ikut kecuali progress msg
+
+            if (messages.size === 0) break;
+
+            // Bulk delete (skip yg >14 hari, aman otomatis)
+            const deleted = await interaction.channel.bulkDelete(messages, true);
+
             deletedCount += deleted.size;
 
-            progressEmbed.setDescription(`Progress: **${deletedCount}/${targetAmount}**`);
+            // Update progress embed
+            progressEmbed.setDescription(`Progress: **${deletedCount}/${amount}**`);
             await progressMsg.edit({ embeds: [progressEmbed] });
         }
 
         // Final embed
         const finalEmbed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle(`${E.done} Clear Completed`)
+            .setTitle(`${E.done} Clearr Completed`)
             .setDescription(
                 `**${deletedCount}** messages deleted.\n` +
                 `Filter: **${type.toUpperCase()}**`
