@@ -14,7 +14,7 @@ const UPDATES_FILE = path.join(__dirname, "../../data/updates.json");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("botupdate")
-        .setDescription("Show detailed bot update history with pagination."),
+        .setDescription("Showw all bot updates with pagination."),
 
     async execute(interaction) {
         await interaction.deferReply();
@@ -24,13 +24,13 @@ module.exports = {
         const repo = process.env.GH_REPO;
 
         if (!token || !owner || !repo) {
-            return interaction.editReply("Missing GitHub configuration (GH_TOKEN, GH_OWNER, GH_REPO).");
+            return interaction.editReply("GitHub configuration missing (GH_TOKEN, GH_OWNER, GH_REPO).");
         }
 
         // Fetch commits
         const url = `https://api.github.com/repos/${owner}/${repo}/commits`;
-        let commits;
 
+        let commits;
         try {
             const res = await fetch(url, {
                 headers: { Authorization: `token ${token}` }
@@ -38,14 +38,14 @@ module.exports = {
 
             if (!res.ok) throw new Error("GitHub API error");
             commits = await res.json();
-        } catch (err) {
-            console.error(err);
-            return interaction.editReply("❌ Failed to fetch commits from GitHub.");
+        } catch (e) {
+            console.error(e);
+            return interaction.editReply("Failed to fetch commits from GitHub.");
         }
 
-        // Convert commits to update objects
-        const updates = commits.map((c, index) => ({
-            version: `v${commits.length - index}`, // real version, ikut urutan commit GitHub
+        // Parse commits → updates
+        let updates = commits.map((c, i) => ({
+            version: `v${commits.length - i}`,
             title: c.commit.message,
             category: detectCategory(c.commit.message),
             date: new Date(c.commit.author.date).toLocaleString()
@@ -56,52 +56,48 @@ module.exports = {
 
         // Pagination
         let page = 0;
-        const perPage = 3;
+        const perPage = 3; // lebih nyaman baca 3 commit per halaman
         const totalPages = Math.ceil(updates.length / perPage);
 
         const render = (p) => {
             const start = p * perPage;
-            const items = updates.slice(start, start + perPage);
+            const pageItems = updates.slice(start, start + perPage);
 
             const embed = new EmbedBuilder()
-                .setTitle(`<a:Developer1:1357261458014212116> Bot Update History`)
-                .setColor("#2B2D31")
-                .setFooter({ text: `Page ${p + 1} / ${totalPages}` })
+                .setTitle("📜 Bot Update History")
+                .setColor("#0099ff")
+                .setFooter({ text: `Page ${p + 1} of ${totalPages}` })
                 .setTimestamp();
 
-            items.forEach(update => {
+            pageItems.forEach(up => {
                 embed.addFields({
-                    name: `${update.version} • ${update.category}`,
-                    value:
-                        `\`\`\`\n${update.title}\n\`\`\`\n` +
-                        `🗓 **${update.date}**`,
-                    inline: false
+                    name: `${up.version} • ${up.category}`,
+                    value: `\`\`\`${up.title}\`\`\`\n🗓 ${up.date}`
                 });
             });
 
-            // PRETTY BUTTONS
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId("first")
-                    .setEmoji("⏮️")
+                    .setLabel("First")
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(p === 0),
 
                 new ButtonBuilder()
                     .setCustomId("prev")
-                    .setEmoji("◀️")
+                    .setLabel("Previous")
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(p === 0),
 
                 new ButtonBuilder()
                     .setCustomId("next")
-                    .setEmoji("▶️")
+                    .setLabel("Next")
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(p === totalPages - 1),
 
                 new ButtonBuilder()
                     .setCustomId("last")
-                    .setEmoji("⏭️")
+                    .setLabel("Last")
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(p === totalPages - 1)
             );
@@ -110,29 +106,29 @@ module.exports = {
         };
 
         // Send first page
-        let firstRender = render(page);
+        let first = render(page);
 
         const msg = await interaction.editReply({
-            embeds: [firstRender.embed],
-            components: [firstRender.row]
+            embeds: [first.embed],
+            components: [first.row]
         });
 
         const collector = msg.createMessageComponentCollector({ time: 5 * 60 * 1000 });
 
         collector.on("collect", async (btn) => {
             if (btn.user.id !== interaction.user.id)
-                return btn.reply({ content: "❌ This button is not for you.", ephemeral: true });
+                return btn.reply({ content: "This button is not for you.", ephemeral: true });
 
+            if (btn.customId === "next") page++;
+            if (btn.customId === "prev") page--;
             if (btn.customId === "first") page = 0;
-            if (btn.customId === "prev" && page > 0) page--;
-            if (btn.customId === "next" && page < totalPages - 1) page++;
             if (btn.customId === "last") page = totalPages - 1;
 
-            let nextRender = render(page);
+            const next = render(page);
 
             await btn.update({
-                embeds: [nextRender.embed],
-                components: [nextRender.row]
+                embeds: [next.embed],
+                components: [next.row]
             });
         });
 
@@ -142,7 +138,7 @@ module.exports = {
     }
 };
 
-// Detect category by keywords
+// Auto detect category
 function detectCategory(msg) {
     msg = msg.toLowerCase();
 
