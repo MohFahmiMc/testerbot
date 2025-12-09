@@ -25,48 +25,52 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true }); // 🔒 SAFE → Tidak error lagi
+
         const type = interaction.options.getString("type");
         const messageContent = interaction.options.getString("message");
         const role = interaction.options.getRole("role");
 
-        const announceIcon = "<:utility8:1357261385947418644>";
-        const footerIcon = "<:management:1447855811425468446>";
+        // 🔊 Emoji baru yang profesional
+        const announceEmoji = "📢";
+        const successEmoji = "📨";
 
+        // ============================
+        //        EMBED MODE
+        // ============================
         if (type === "embed") {
             const embed = new EmbedBuilder()
-                .setTitle(`${announceIcon} Announcement`)
-                .setDescription(messageContent)
                 .setColor("#2B7BFF")
-                .setTimestamp()
+                .setTitle(`${announceEmoji} Announcement`)
+                .setDescription(messageContent)
+                .setThumbnail(interaction.client.user.displayAvatarURL())
                 .setFooter({
-                    text: `Announcement by ${interaction.user.tag}`,
+                    text: `Sent by ${interaction.user.tag}`,
                     iconURL: interaction.user.displayAvatarURL()
-                });
+                })
+                .setTimestamp();
 
-            if (role) {
-                await interaction.channel.send({
-                    content: `${role}`,
-                    embeds: [embed]
-                });
-            } else {
-                await interaction.channel.send({ embeds: [embed] });
-            }
-
-            await interaction.reply({
-                content: "<:blueutility4:1357261525387182251> Your announcement has been sent!",
-                ephemeral: true
+            // Kirim pengumuman
+            await interaction.channel.send({
+                content: role ? `${role}` : null,
+                embeds: [embed]
             });
 
-        } else if (type === "chat") {
-            if (role) {
-                await interaction.channel.send(`${role} ${messageContent}`);
-            } else {
-                await interaction.channel.send(messageContent);
-            }
+            return interaction.editReply({
+                content: `${successEmoji} Your announcement has been delivered successfully!`
+            });
+        }
 
-            await interaction.reply({
-                content: "<:blueutility4:1357261525387182251> Your announcement has been sent!",
-                ephemeral: true
+        // ============================
+        //         CHAT MODE
+        // ============================
+        if (type === "chat") {
+            await interaction.channel.send(
+                role ? `${role} ${messageContent}` : messageContent
+            );
+
+            return interaction.editReply({
+                content: `${successEmoji} Your announcement has been delivered successfully!`
             });
         }
     }

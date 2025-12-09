@@ -10,5 +10,29 @@
     "servers": {
       "Scarily  | Chat Servers": 2
     }
+  },
+  "botupdate": {
+    "total": 1,
+    "servers": {
+      "Scarily  | Chat Servers": 1
+    }
+  },
+  "announcement": {
+    "total": 3,
+    "servers": {
+      "Scarily  | Chat Servers": 3
+    }
+  },
+  "serverstats": {
+    "total": 1,
+    "servers": {
+      "Scarily  | Chat Servers": 1
+    }
+  },
+  "cleanup": {
+    "total": 2,
+    "servers": {
+      "Scarily  | Chat Servers": 2
+    }
   }
 }

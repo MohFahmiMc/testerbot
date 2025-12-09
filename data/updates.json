@@ -1,0 +1,182 @@
+[
+  {
+    "version": "v30",
+    "title": "modified:   ommands/moderation/ann.js\nmodified:   commands/moderation/auditlog.js\nmodified:   commands/moderation/audituser.js\nmodified:   commands/moderation/cleanup.js\nmodified:   commands/moderation/serverstats.js",
+    "category": "Change",
+    "date": "12/9/2025, 7:09:25 PM"
+  },
+  {
+    "version": "v29",
+    "title": "modified:   EADME.md",
+    "category": "Change",
+    "date": "12/9/2025, 6:51:05 PM"
+  },
+  {
+    "version": "v28",
+    "title": "modified:   ommands/utility/about.js",
+    "category": "Change",
+    "date": "12/9/2025, 6:17:06 PM"
+  },
+  {
+    "version": "v27",
+    "title": "modified:   ommands/utility/about.js\nmodified:   commands/utility/help.js",
+    "category": "Change",
+    "date": "12/9/2025, 6:13:24 PM"
+  },
+  {
+    "version": "v26",
+    "title": "modified:   commands/utility/about.js",
+    "category": "Change",
+    "date": "12/9/2025, 5:51:01 PM"
+  },
+  {
+    "version": "v25",
+    "title": "modified:   ommands/utility/botupdate.js\nnew file:   commands/utility/botupdatebp.txty",
+    "category": "Added",
+    "date": "12/9/2025, 12:32:05 PM"
+  },
+  {
+    "version": "v24",
+    "title": "modified:   commands/utility/about.js",
+    "category": "Change",
+    "date": "12/9/2025, 12:22:01 PM"
+  },
+  {
+    "version": "v23",
+    "title": "modified:   ommands/utility/about.js\nnew file:   deploy.py",
+    "category": "Added",
+    "date": "12/9/2025, 12:20:45 PM"
+  },
+  {
+    "version": "v22",
+    "title": "modified:   commands/utility/help.js\n        new file:   commands/utility/help.txt",
+    "category": "Added",
+    "date": "12/9/2025, 12:14:43 PM"
+  },
+  {
+    "version": "v21",
+    "title": "     deleted:    commands/moderation/setprefix.js\n        deleted:    data/prefixes.json\n        deleted:    events/interactionCreate3.js\n        deleted:    events/massageCreate3.js\n        modified:   package-lock.json\n        modified:   package.json\n        deleted:    utils/github.js",
+    "category": "Fixed",
+    "date": "12/9/2025, 10:43:40 AM"
+  },
+  {
+    "version": "v20",
+    "title": "push",
+    "category": "Change",
+    "date": "12/9/2025, 5:56:22 AM"
+  },
+  {
+    "version": "v19",
+    "title": "new file:   commands/moderation/setprefix.js\n        modified:   commands/moderation/setprefixx.js\n        modified:   data/commandStats.json\n        modified:   data/prefixes.json\n        modified:   events/massageCreate3.js\n        new file:   utils/github.js",
+    "category": "Added",
+    "date": "12/9/2025, 5:52:39 AM"
+  },
+  {
+    "version": "v18",
+    "title": "Update prefixes.json",
+    "category": "Fixed",
+    "date": "12/9/2025, 5:34:45 AM"
+  },
+  {
+    "version": "v17",
+    "title": "renamed:    commands/moderation/setprefix.js -> commands/moderation/setprefixx.js\n        modified:   data/commandStats.json\n        modified:   data/prefixes.json\n        modified:   events/massageCreate3.js\n        new file:   prefixes.json",
+    "category": "Added",
+    "date": "12/9/2025, 5:33:29 AM"
+  },
+  {
+    "version": "v16",
+    "title": "modified:   commands/moderation/setprefix.js\n        new file:   events/massageCreate3.js",
+    "category": "Added",
+    "date": "12/8/2025, 10:46:52 PM"
+  },
+  {
+    "version": "v15",
+    "title": "deleted:    commands/moderation/reactionroles.js\n        modified:   commands/moderation/say.js",
+    "category": "Removed",
+    "date": "12/8/2025, 8:10:37 PM"
+  },
+  {
+    "version": "v14",
+    "title": "   modified:   bot.js",
+    "category": "Change",
+    "date": "12/8/2025, 7:53:37 PM"
+  },
+  {
+    "version": "v13",
+    "title": "fix again",
+    "category": "Fixed",
+    "date": "12/8/2025, 7:35:07 PM"
+  },
+  {
+    "version": "v12",
+    "title": "fix: members who don't have administrative permissions on the server can't access moderation commands",
+    "category": "Fixed",
+    "date": "12/8/2025, 7:26:51 PM"
+  },
+  {
+    "version": "v11",
+    "title": "renamed:    commands/utility/emoji.js -> commands/moderation/emoji.js",
+    "category": "Change",
+    "date": "12/8/2025, 7:15:06 PM"
+  },
+  {
+    "version": "v10",
+    "title": "idk",
+    "category": "Change",
+    "date": "12/8/2025, 7:00:52 PM"
+  },
+  {
+    "version": "v9",
+    "title": "modified:   utils/afk.js",
+    "category": "Change",
+    "date": "12/8/2025, 6:48:37 PM"
+  },
+  {
+    "version": "v8",
+    "title": "modified:   utils/afk.js",
+    "category": "Change",
+    "date": "12/8/2025, 6:44:40 PM"
+  },
+  {
+    "version": "v7",
+    "title": "idk",
+    "category": "Change",
+    "date": "12/8/2025, 6:30:51 PM"
+  },
+  {
+    "version": "v6",
+    "title": "afk.js",
+    "category": "Change",
+    "date": "12/8/2025, 6:20:10 PM"
+  },
+  {
+    "version": "v5",
+    "title": "new file:   commands/utility/afkCommand.js\n        modified:   events/interactionCreate2.js\n        modified:   events/massageCreate2.js\n        renamed:    commands/utility/afk.js -> utils/afk.js",
+    "category": "Added",
+    "date": "12/8/2025, 6:16:17 PM"
+  },
+  {
+    "version": "v4",
+    "title": "modified:   commands/utility/afk.js\n        modified:   events/interactionCreate2.js\n        modified:   events/massageCreate2.js",
+    "category": "Change",
+    "date": "12/8/2025, 5:55:47 PM"
+  },
+  {
+    "version": "v3",
+    "title": "modified:   events/interactionCreate2.js\n        modified:   events/massageCreate2.js",
+    "category": "Change",
+    "date": "12/8/2025, 5:44:34 PM"
+  },
+  {
+    "version": "v2",
+    "title": "modified:   events/massageCreate2.js",
+    "category": "Change",
+    "date": "12/8/2025, 5:31:01 PM"
+  },
+  {
+    "version": "v1",
+    "title": "modified:   commands/utility/afk.js\n        new file:   events/interactionCreate2.js\n        new file:   events/massageCreate2.js",
+    "category": "Added",
+    "date": "12/8/2025, 5:19:46 PM"
+  }
+]
