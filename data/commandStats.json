@@ -40,5 +40,23 @@
     "servers": {
       "Scarily  | Chat Servers": 2
     }
+  },
+  "setwelcome": {
+    "total": 1,
+    "servers": {
+      "Scarily  | Chat Servers": 1
+    }
+  },
+  "role": {
+    "total": 2,
+    "servers": {
+      "Scarily  | Chat Servers": 2
+    }
+  },
+  "autorole": {
+    "total": 1,
+    "servers": {
+      "Scarily  | Chat Servers": 1
+    }
   }
 }
