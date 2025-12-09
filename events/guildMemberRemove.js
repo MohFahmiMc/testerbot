@@ -5,7 +5,7 @@ const path = require("path");
 const WELCOME_FILE = path.join(__dirname, "../data/welcome.json");
 
 module.exports = {
-    name: "guildMemberAdd",
+    name: "guildMemberRemove",
     async execute(member) {
         if (!fs.existsSync(WELCOME_FILE)) return;
         const data = JSON.parse(fs.readFileSync(WELCOME_FILE, "utf8"));
@@ -17,16 +17,16 @@ module.exports = {
 
         // Emoji style
         const E = {
-            welcome: "<:welcome:1357260010303918090>",
+            leave: "<:leave:1357260010303918090>",
             member: "<:utility1:1357261562938790050>"
         };
 
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle(`${E.welcome} Welcome!`)
-            .setDescription(`Hello ${member}, welcome to **${member.guild.name}**!\nYou are member **#${member.guild.memberCount}**`)
+            .setTitle(`${E.leave} Goodbye!`)
+            .setDescription(`${member.user.tag} has left **${member.guild.name}**.\nNow there are **${member.guild.memberCount}** members.`)
             .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-            .setFooter({ text: `${member.user.tag} joined` })
+            .setFooter({ text: `Member left` })
             .setTimestamp();
 
         channel.send({ embeds: [embed] });
