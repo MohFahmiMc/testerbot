@@ -44,7 +44,7 @@ module.exports = {
             const commands = loadCategoryCommands(category);
 
             const embed = new EmbedBuilder()
-                .setTitle(`<a:Developer1:1357261458014212116> Help Menu`)
+                .setTitle(`<a:enchantbook:1447855833789763775> Help Menu`)
                 .setColor("#2B2D31")
                 .setDescription(`**Category:** \`${category.toUpperCase()}\`\nUse the buttons to navigate.`)
                 .setFooter({ text: `Page ${page + 1} / ${categories.length}` });

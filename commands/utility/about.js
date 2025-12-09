@@ -17,14 +17,14 @@ module.exports = {
         // Picked emojis from your list
         const E = {
             title: "<:premium_crown:1357260010303918090>",
-            owner: "<:developer:1447459159649030264>",
+            owner: "<a:Developer1:1357261458014212116>",
             servers: "<:utility12:1357261389399593004>",
             users: "<:utility1:1357261562938790050>",
             channels: "<:Utility1:1357261430684123218>",
             commands: "<:Utility1:1357261430684123218>",
             ping: "<:ping1:1447452221699784715>",
             node: "<:blueutility4:1357261525387182251>",
-            djs: "<:discord:1447459156436193432>",
+            djs: "<:discord:1447855769000218724>",
             support: "<:Support:1447452228259549215>",
         };
 
@@ -73,8 +73,8 @@ module.exports = {
                     inline: true
                 },
                 {
-                    name: `${E.djs} Library Discord.js`,
-                    value: `${require("discord.js").version}`,
+                    name: `${E.djs} Library`,
+                    value: `$Discord.js v{require("discord.js").version}`,
                     inline: true
                 },
                 {
