@@ -29,7 +29,7 @@ module.exports = {
         };
 
         const embed = new EmbedBuilder()
-            .setColor(1300f2)
+            .setColor(0x2b2d31)
             .setThumbnail(bot.user.displayAvatarURL())
             .setTitle(`${E.title} About ${bot.user.username}`)
             .setDescription(
