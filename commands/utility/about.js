@@ -43,37 +43,37 @@ module.exports = {
                     inline: true
                 },
                 {
-                    name: `${E.servers} Servers`,
+                    name: `${E.servers} Server Joineds`,
                     value: `${guildCount}`,
                     inline: true
                 },
                 {
-                    name: `${E.users} Users`,
+                    name: `${E.users} Total Users`,
                     value: `${userCount}`,
                     inline: true
                 },
                 {
-                    name: `${E.channels} Channels`,
+                    name: `${E.channels} Total Channels`,
                     value: `${channelCount}`,
                     inline: true
                 },
                 {
-                    name: `${E.commands} Commands`,
+                    name: `${E.commands} Total Commands`,
                     value: `${totalCommands}`,
                     inline: true
                 },
                 {
-                    name: `${E.ping} Latency`,
+                    name: `${E.ping} Bot Latency`,
                     value: `${ping}ms`,
                     inline: true
                 },
                 {
-                    name: `${E.node} Node.js`,
+                    name: `${E.node} Node.js Version`,
                     value: `${process.version}`,
                     inline: true
                 },
                 {
-                    name: `${E.djs} Discord.js`,
+                    name: `${E.djs} Library Discord.js`,
                     value: `${require("discord.js").version}`,
                     inline: true
                 },
