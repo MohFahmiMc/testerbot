@@ -3,7 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require("disc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("clear")
-        .setDescription("Delete messages with progress display.")
+        .setDescription("Delete messages with a progress display.")
         .addIntegerOption(option =>
             option.setName("amount")
                 .setDescription("Amount of messages to delete (1-100).")
@@ -48,30 +48,36 @@ module.exports = {
             .setDescription(`Progress: **${deletedCount}/${amount}**`)
             .setTimestamp();
 
-        const msg = await interaction.editReply({ embeds: [progressEmbed] });
+        const progressMsg = await interaction.editReply({ embeds: [progressEmbed] });
 
+        // Loop delete
         while (deletedCount < amount) {
             const fetchLimit = Math.min(10, amount - deletedCount);
 
             let messages = await interaction.channel.messages.fetch({ limit: fetchLimit });
 
+            // FILTER agar progress message TIDAK kehapus
+            messages = messages.filter(m => m.id !== progressMsg.id);
+
             if (type === "bot")
                 messages = messages.filter(m => m.author.bot);
             else if (type === "user")
                 messages = messages.filter(m => !m.author.bot);
+            // type = all → semua ikut kecuali progress msg
 
             if (messages.size === 0) break;
 
+            // Bulk delete (skip yg >14 hari, aman otomatis)
             const deleted = await interaction.channel.bulkDelete(messages, true);
 
             deletedCount += deleted.size;
 
-            // Update progress
+            // Update progress embed
             progressEmbed.setDescription(`Progress: **${deletedCount}/${amount}**`);
-            await msg.edit({ embeds: [progressEmbed] });
+            await progressMsg.edit({ embeds: [progressEmbed] });
         }
 
-        // Final Embed
+        // Final embed
         const finalEmbed = new EmbedBuilder()
             .setColor(0x2b2d31)
             .setTitle(`${E.done} Clear Completed`)
