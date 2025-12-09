@@ -38,7 +38,7 @@ module.exports = {
             )
             .addFields(
                 {
-                    name: `${E.owner} Bot Owner`,
+                    name: `${E.owner} Develover`,
                     value: `<@${process.env.OWNER_ID}>`,
                     inline: true
                 },
@@ -74,7 +74,7 @@ module.exports = {
                 },
                 {
                     name: `${E.djs} Library`,
-                    value: `$Discord.js v{require("discord.js").version}`,
+                    value: `Discord.js v${require("discord.js").version}`,
                     inline: true
                 },
                 {
