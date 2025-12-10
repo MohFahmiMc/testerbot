@@ -16,7 +16,7 @@ module.exports = {
         const activities = [
             () => `Developer ${developer}`,
             () => `Playing ${client.guilds.cache.size} Servers`,
-            () => `Zephyr Utility/Moderation`,
+            () => `Powered by Scarily`,
             () => `Hosting ScarilyId`,
         ];
 
