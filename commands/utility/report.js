@@ -2,8 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 const OWNER_ID = process.env.OWNER_ID;
 const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(",") : [];
-const SERVER_ID = "1270744769877901426"; // server tujuan
-const CHANNEL_ID = "1448139487480909865"; // channel tujuan
+const CHANNEL_ID = "1448139487480909865"; // report channel
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,7 +29,6 @@ module.exports = {
         const sub = interaction.options.getSubcommand();
         const client = interaction.client;
 
-        // Helper embed colors
         const COLORS = {
             default: 0x2b2d31,
             reply: 0xff0000,
@@ -40,6 +38,8 @@ module.exports = {
         const isAdmin = [OWNER_ID, ...ADMIN_IDS].includes(interaction.user.id);
 
         try {
+            const reportChannel = await client.channels.fetch(CHANNEL_ID);
+
             if (sub === "create") {
                 const desc = interaction.options.getString("description");
 
@@ -51,54 +51,56 @@ module.exports = {
                     .setFooter({ text: `Use /report reply <id> or /report fix <id> to respond` })
                     .setTimestamp();
 
-                const reportChannel = await client.channels.fetch(CHANNEL_ID);
+                // Kirim ke channel sekali saja
                 const msg = await reportChannel.send({ embeds: [embed] });
 
-                await interaction.reply({ content: `Report submitted! Message ID: ${msg.id}`, ephemeral: true });
+                await interaction.reply({ content: `✅ Report submitted! Message ID: ${msg.id}`, ephemeral: true });
             }
 
             if (sub === "reply") {
-                if (!isAdmin) return interaction.reply({ content: "You are not authorized to reply.", ephemeral: true });
+                if (!isAdmin) return interaction.reply({ content: "❌ You are not authorized to reply.", ephemeral: true });
 
                 const messageId = interaction.options.getString("message_id");
                 const reply = interaction.options.getString("reply");
-                const reportChannel = await client.channels.fetch(CHANNEL_ID);
+
                 const msg = await reportChannel.messages.fetch(messageId).catch(() => null);
-                if (!msg) return interaction.reply({ content: "Report not found.", ephemeral: true });
+                if (!msg) return interaction.reply({ content: "❌ Report not found.", ephemeral: true });
 
                 const embed = EmbedBuilder.from(msg.embeds[0])
                     .setColor(COLORS.reply)
                     .addFields({ name: `Reply from ${interaction.user.tag}`, value: reply });
 
                 await msg.edit({ embeds: [embed] });
-                await interaction.reply({ content: "Reply added.", ephemeral: true });
+                await interaction.reply({ content: "✅ Reply added.", ephemeral: true });
             }
 
             if (sub === "fix") {
-                if (!isAdmin) return interaction.reply({ content: "You are not authorized to fix.", ephemeral: true });
+                if (!isAdmin) return interaction.reply({ content: "❌ You are not authorized to fix.", ephemeral: true });
 
                 const messageId = interaction.options.getString("message_id");
-                const reportChannel = await client.channels.fetch(CHANNEL_ID);
+
                 const msg = await reportChannel.messages.fetch(messageId).catch(() => null);
-                if (!msg) return interaction.reply({ content: "Report not found.", ephemeral: true });
+                if (!msg) return interaction.reply({ content: "❌ Report not found.", ephemeral: true });
 
                 const embed = EmbedBuilder.from(msg.embeds[0]).setColor(COLORS.fixed);
 
                 await msg.edit({ embeds: [embed] });
 
-                // DM reporter
+                // DM reporter sekali
                 const reporterId = msg.embeds[0].fields.find(f => f.name === "Reporter")?.value.match(/\d+/)?.[0];
                 if (reporterId) {
-                    const user = await client.users.fetch(reporterId).catch(() => null);
-                    if (user) user.send(`Your report (ID: ${messageId}) has been fixed ✅`).catch(() => {});
+                    try {
+                        const user = await client.users.fetch(reporterId);
+                        await user.send(`✅ Your report (ID: ${messageId}) has been fixed.`).catch(() => {});
+                    } catch { /* ignore errors */ }
                 }
 
-                await interaction.reply({ content: "Report marked as fixed.", ephemeral: true });
+                await interaction.reply({ content: "✅ Report marked as fixed.", ephemeral: true });
             }
 
         } catch (err) {
             console.error(err);
-            if (!interaction.replied) await interaction.reply({ content: "Something went wrong.", ephemeral: true });
+            if (!interaction.replied) await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true });
         }
     }
 };
