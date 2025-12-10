@@ -2,147 +2,189 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 const OWNER_ID = process.env.OWNER_ID;
 const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(",") : [];
-const CHANNEL_ID = "1448139487480909865"; // report channel
+const CHANNEL_ID = "1448139487480909865";
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("report")
-        .setDescription("Report system for bugs/errors")
-
-        // CREATE
+        .setDescription("Bug report system")
         .addSubcommand(sub =>
             sub.setName("create")
                 .setDescription("Create a new report")
-                .addStringOption(o => o.setName("description").setDescription("Explain the bug/error").setRequired(true))
-        )
-
-        // MANAGE (reply, fix, denied)
-        .addSubcommand(sub =>
-            sub.setName("manage")
-                .setDescription("Manage a report (OWNER/ADMIN only)")
-                .addStringOption(o => o.setName("message_id").setDescription("Report message ID").setRequired(true))
                 .addStringOption(o =>
-                    o.setName("action")
-                        .setDescription("Action to apply")
+                    o.setName("description")
+                        .setDescription("Describe the bug/error")
                         .setRequired(true)
-                        .addChoices(
-                            { name: "Reply", value: "reply" },
-                            { name: "Fix", value: "fix" },
-                            { name: "Denied", value: "denied" }
-                        ))
+                )
+        )
+        .addSubcommand(sub =>
+            sub.setName("reply")
+                .setDescription("Reply to a report (admin only)")
                 .addStringOption(o =>
-                    o.setName("message")
-                        .setDescription("Reply message (required only for reply)")
-                        .setRequired(false))
+                    o.setName("id").setDescription("Report ID").setRequired(true)
+                )
+                .addStringOption(o =>
+                    o.setName("message").setDescription("Reply message").setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
+            sub.setName("fix")
+                .setDescription("Mark report as fixed")
+                .addStringOption(o =>
+                    o.setName("id").setDescription("Report ID").setRequired(true)
+                )
+                .addStringOption(o =>
+                    o.setName("message").setDescription("Fix message").setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
+            sub.setName("deny")
+                .setDescription("Deny a report")
+                .addStringOption(o =>
+                    o.setName("id").setDescription("Report ID").setRequired(true)
+                )
+                .addStringOption(o =>
+                    o.setName("reason").setDescription("Reason").setRequired(true)
+                )
         ),
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
-        const client = interaction.client;
+        const userId = interaction.user.id;
+        const isAdmin = [OWNER_ID, ...ADMIN_IDS].includes(userId);
 
-        const COLORS = {
-            default: 0x2b2d31,
-            reply: 0xff0000,
-            fixed: 0x00ff00,
-            denied: 0xff8800
-        };
-
-        const isAdmin = [OWNER_ID, ...ADMIN_IDS].includes(interaction.user.id);
-
-        // ---------------- CREATE ----------------
-        if (sub === "create") {
-            const desc = interaction.options.getString("description");
-
-            const embed = new EmbedBuilder()
-                .setTitle("📝 New Report")
-                .setDescription(desc)
-                .addFields({ name: "Reporter", value: `<@${interaction.user.id}>`, inline: true })
-                .setColor(COLORS.default)
-                .setFooter({ text: `Use /report manage <id>` })
-                .setTimestamp();
-
-            const reportChannel = await client.channels.fetch(CHANNEL_ID);
-            const msg = await reportChannel.send({ embeds: [embed] });
-
+        // Admin check
+        if (sub !== "create" && !isAdmin) {
             return interaction.reply({
-                content: `Report submitted! Message ID: \`${msg.id}\``,
+                content: "Only owner/admin can do that.",
                 ephemeral: true
             });
         }
 
-        // ---------------- MANAGE (reply / fix / denied) ----------------
-        if (sub === "manage") {
+        // CREATE
+        if (sub === "create") {
+            const desc = interaction.options.getString("description");
+            const channel = await interaction.client.channels.fetch(CHANNEL_ID);
 
-            if (!isAdmin)
-                return interaction.reply({ content: "You are not authorized to manage reports.", ephemeral: true });
+            const embed = new EmbedBuilder()
+                .setTitle("📝 New Report")
+                .setColor(0x2b2d31)
+                .setDescription(desc)
+                .addFields(
+                    { name: "Reporter", value: `<@${interaction.user.id}>` },
+                    { name: "Status", value: "Pending ⏳" }
+                )
+                .setTimestamp();
 
-            const messageId = interaction.options.getString("message_id");
-            const action = interaction.options.getString("action");
-            const messageText = interaction.options.getString("message");
+            const msg = await channel.send({ embeds: [embed] });
 
-            const reportChannel = await client.channels.fetch(CHANNEL_ID);
-            const msg = await reportChannel.messages.fetch(messageId).catch(() => null);
+            return interaction.reply({
+                content: `Your report has been submitted!\nReport ID: **${msg.id}**`,
+                ephemeral: true
+            });
+        }
 
-            if (!msg) return interaction.reply({ content: "Report not found.", ephemeral: true });
+        // REPLY / FIX / DENY
+        if (sub === "reply") {
+            await updateReport(interaction, "replied", 0x3498DB, interaction.options.getString("message"));
+        }
 
-            const originalEmbed = msg.embeds[0];
-            const reporterId = originalEmbed.fields.find(f => f.name === "Reporter")?.value.match(/\d+/)?.[0];
+        if (sub === "fix") {
+            await updateReport(interaction, "fixed", 0x2ECC71, interaction.options.getString("message"));
+        }
 
-            if (!reporterId)
-                return interaction.reply({ content: "Reporter not found in this report.", ephemeral: true });
-
-            // Build new embed
-            const embed = EmbedBuilder.from(originalEmbed);
-
-            // Handle actions
-            if (action === "reply") {
-                if (!messageText)
-                    return interaction.reply({ content: "You must provide a reply message.", ephemeral: true });
-
-                embed.setColor(COLORS.reply)
-                    .addFields({
-                        name: `Reply from ${interaction.user.tag}`,
-                        value: messageText
-                    });
-
-                // DM reporter
-                const user = await client.users.fetch(reporterId).catch(() => null);
-                if (user) {
-                    await user.send(`📩 Your report (ID: ${messageId}) has a new reply:\n**${messageText}**`)
-                        .catch(() => {});
-                }
-
-                await msg.edit({ embeds: [embed] });
-                return interaction.reply({ content: "Reply added and user notified.", ephemeral: true });
-            }
-
-            if (action === "fix") {
-                embed.setColor(COLORS.fixed);
-
-                await msg.edit({ embeds: [embed] });
-
-                const user = await client.users.fetch(reporterId).catch(() => null);
-                if (user) {
-                    await user.send(`✅ Your report (ID: ${messageId}) has been marked as **fixed**.`)
-                        .catch(() => {});
-                }
-
-                return interaction.reply({ content: "Report marked as fixed.", ephemeral: true });
-            }
-
-            if (action === "denied") {
-                embed.setColor(COLORS.denied);
-
-                await msg.edit({ embeds: [embed] });
-
-                const user = await client.users.fetch(reporterId).catch(() => null);
-                if (user) {
-                    await user.send(`❌ Your report (ID: ${messageId}) has been **denied** by staff.`)
-                        .catch(() => {});
-                }
-
-                return interaction.reply({ content: "Report denied.", ephemeral: true });
-            }
+        if (sub === "deny") {
+            await updateReport(interaction, "denied", 0xE74C3C, interaction.options.getString("reason"));
         }
     }
 };
+
+// ===================================================================
+// UPDATE REPORT FUNCTION
+// ===================================================================
+async function updateReport(interaction, action, color, adminMessage) {
+    const client = interaction.client;
+    const reportId = interaction.options.getString("id");
+    const channel = await client.channels.fetch(CHANNEL_ID);
+
+    let msg;
+    try {
+        msg = await channel.messages.fetch(reportId);
+    } catch {
+        return interaction.reply({ content: "Report not found.", ephemeral: true });
+    }
+
+    const oldEmbed = msg.embeds[0];
+
+    // Get reporter ID
+    const reporterId = oldEmbed.fields.find(f => f.name === "Reporter")?.value.match(/\d+/)?.[0];
+    const reportText = oldEmbed.description || "No description";
+
+    // BUILD NEW EMBED (update)
+    const embed = new EmbedBuilder()
+        .setTitle(oldEmbed.title || "Report Update")
+        .setDescription(reportText)
+        .setColor(color)
+        .addFields(
+            { name: "Reporter", value: `<@${reporterId}>` },
+            {
+                name:
+                    action === "replied"
+                        ? `Reply from ${interaction.user.tag}`
+                        : action === "fixed"
+                            ? `Fixed by ${interaction.user.tag}`
+                            : `Denied by ${interaction.user.tag}`,
+                value: adminMessage
+            },
+            {
+                name: "Status",
+                value:
+                    action === "replied"
+                        ? "Replied 💬"
+                        : action === "fixed"
+                            ? "Fixed ✅"
+                            : "Denied ❌"
+            }
+        )
+        .setTimestamp();
+
+    // UPDATE MESSAGE IN CHANNEL
+    await msg.edit({ embeds: [embed] });
+
+    // DM REPORTER
+    const reporter = await client.users.fetch(reporterId).catch(() => null);
+    if (reporter) {
+        await reporter.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle("📢 Report Update")
+                    .setColor(color)
+                    .addFields(
+                        { name: "Report ID", value: reportId },
+                        { name: "Original Report", value: reportText },
+                        {
+                            name:
+                                action === "replied"
+                                    ? `Reply from ${interaction.user.tag}`
+                                    : action === "fixed"
+                                        ? `Fixed by ${interaction.user.tag}`
+                                        : `Denied by ${interaction.user.tag}`,
+                            value: adminMessage
+                        }
+                    )
+                    .setTimestamp()
+            ]
+        }).catch(() => {});
+    }
+
+    // REPLY TO ADMIN
+    return interaction.reply({
+        content:
+            action === "replied"
+                ? "Reply sent."
+                : action === "fixed"
+                    ? "Report marked as fixed."
+                    : "Report denied.",
+        ephemeral: true
+    });
+}
