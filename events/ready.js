@@ -17,7 +17,6 @@ module.exports = {
             () => `Developer ${developer}`,
             () => `Playing ${client.guilds.cache.size} Servers`,
             () => `Powered by Scarily`,
-            () => `Hosting ScarilyId`,
             () => `Uptime ${uptime}`,
         ];
 
