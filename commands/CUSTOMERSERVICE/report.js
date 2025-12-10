@@ -67,7 +67,7 @@ module.exports = {
             const channel = await interaction.client.channels.fetch(CHANNEL_ID);
 
             const embed = new EmbedBuilder()
-                .setTitle("📝 New Report")
+                .setTitle("<a:staff:1447855818602184776> New Report")
                 .setColor(0x2b2d31)
                 .setDescription(desc)
                 .addFields(
@@ -140,10 +140,10 @@ async function updateReport(interaction, action, color, adminMessage) {
                 name: "Status",
                 value:
                     action === "replied"
-                        ? "Replied 💬"
+                        ? "Replied <:utility1:1357261562938790050>"
                         : action === "fixed"
-                            ? "Fixed ✅"
-                            : "Denied ❌"
+                            ? "Fixed <:utility12:1357261389399593004>"
+                            : "Denied <:utility8:1357261385947418644>"
             }
         )
         .setTimestamp();
@@ -157,7 +157,7 @@ async function updateReport(interaction, action, color, adminMessage) {
         await reporter.send({
             embeds: [
                 new EmbedBuilder()
-                    .setTitle("📢 Report Update")
+                    .setTitle("<a:greenverif1:1357261402393542779> Report Update")
                     .setColor(color)
                     .addFields(
                         { name: "Report ID", value: reportId },
