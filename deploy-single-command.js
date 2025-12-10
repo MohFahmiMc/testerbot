@@ -6,7 +6,7 @@ const clientId = process.env.CLIENT_ID; // ID bot
 const guildId = process.env.GUILD_ID;
 const token = process.env.TOKEN;
 
-const commandPath = './commands/utility/botrestart.js';
+const commandPath = './commands/utility/report.js';
 
 if (!fs.existsSync(commandPath)) {
     console.error(`❌ Command file not found: ${commandPath}`);
