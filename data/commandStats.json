@@ -60,6 +60,12 @@
     }
   },
   "music": {
+    "total": 2,
+    "servers": {
+      "Scarily  | Chat Servers": 2
+    }
+  },
+  "uptime": {
     "total": 1,
     "servers": {
       "Scarily  | Chat Servers": 1
