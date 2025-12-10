@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, Collection, PermissionsBitField } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, Collection } = require("discord.js");
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -10,7 +10,7 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences,  
+        GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
@@ -70,38 +70,6 @@ for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith(".js"))) {
         client.on(event.name, (...args) => event.execute(...args, client));
     }
 }
-
-// =============================
-//  GLOBAL HANDLER FOR INTERACTIONCREATE
-// =============================
-client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
-    const commandPath = command.filePath || "";
-    const isModeration = commandPath.includes("moderation");
-
-    // 🔹 moderation only admin
-    if (isModeration) {
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return interaction.reply({
-                content: "<:utility8:1357261385947418644> You need Administrator permission to use this command.",
-                ephemeral: true
-            });
-        }
-    }
-
-    // 🔹 execute command
-    try {
-        await command.execute(interaction, client);
-    } catch (err) {
-        console.error(err);
-        if (!interaction.replied)
-            await interaction.reply({ content: "❌ Error executing this command.", ephemeral: true });
-    }
-});
 
 // =============================
 //  LOGIN

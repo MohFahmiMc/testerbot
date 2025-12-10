@@ -1,4 +1,4 @@
-const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require("discord.js");
+const { ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionsBitField } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
@@ -46,22 +46,31 @@ module.exports = {
         // ============================
         if (interaction.isChatInputCommand()) {
 
-            // --- TRACKER ---
             trackCommand(interaction.commandName, interaction.guild?.name);
 
             const command = client.commands.get(interaction.commandName);
-
             if (!command) {
-                return (interaction.replied || interaction.deferred)
+                return interaction.replied || interaction.deferred
                     ? interaction.followUp({ content: "Command not found.", ephemeral: true })
                     : interaction.reply({ content: "Command not found.", ephemeral: true });
+            }
+
+            // 🔹 Restrict moderation folder commands to Admin only
+            const commandPath = command.filePath || "";
+            if (commandPath.includes("moderation")) {
+                if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+                    return interaction.reply({
+                        content: "You need Administrator permission to use this command.",
+                        ephemeral: true
+                    });
+                }
             }
 
             try {
                 await command.execute(interaction, client);
             } catch (err) {
                 console.error(err);
-                return (interaction.replied || interaction.deferred)
+                return interaction.replied || interaction.deferred
                     ? interaction.followUp({ content: "An unexpected error occurred.", ephemeral: true })
                     : interaction.reply({ content: "An unexpected error occurred.", ephemeral: true });
             }
@@ -71,7 +80,6 @@ module.exports = {
         // 🔹 GIVEAWAY JOIN BUTTON
         // ============================
         if (interaction.isButton() && interaction.customId.startsWith("gw_join_")) {
-
             const id = interaction.customId.replace("gw_join_", "");
             const data = loadData();
             const gw = data.giveaways.find(g => g.id === id);
@@ -79,10 +87,8 @@ module.exports = {
             if (!gw) return interaction.reply({ content: "Giveaway not found.", ephemeral: true });
             if (gw.paused) return interaction.reply({ content: "This giveaway is paused.", ephemeral: true });
 
-            // Safety: entrants harus ada
             gw.entrants = gw.entrants || [];
 
-            // Safety: role check harus dicek apakah interaction.member ada
             if (gw.requiredRoleId && interaction.member?.roles && !interaction.member.roles.cache.has(gw.requiredRoleId)) {
                 return interaction.reply({ content: "You do not meet the role requirement.", ephemeral: true });
             }
@@ -95,8 +101,6 @@ module.exports = {
                 }
 
                 saveData(data);
-
-                // --- TRACKER ---
                 trackCommand(`giveaway_join`, interaction.guild?.name);
             }
 
@@ -105,14 +109,11 @@ module.exports = {
                 const msg = await interaction.channel.messages.fetch(gw.messageId);
                 if (msg) {
                     const uniqueCount = new Set(gw.entrants).size;
-
                     const button = new ButtonBuilder()
                         .setCustomId(`gw_join_${gw.id}`)
                         .setLabel(`Join Giveaway (${uniqueCount} joined)`)
                         .setStyle(ButtonStyle.Primary);
-
                     const row = new ActionRowBuilder().addComponents(button);
-
                     await msg.edit({ components: [row] }).catch(() => {});
                 }
             } catch (e) {
