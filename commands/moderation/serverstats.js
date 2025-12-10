@@ -8,7 +8,7 @@ module.exports = {
     async execute(interaction) {
         const guild = interaction.guild;
 
-        // Emoji set (pakai set yang sama style about.js)
+        // Emoji set (match about.js)
         const E = {
             title: "<:premium_crown:1357260010303918090>",
             owner: "<a:Developer1:1357261458014212116>",
@@ -20,32 +20,35 @@ module.exports = {
             region: "<:discord:1447855769000218724>",
         };
 
-        // Data server
+        // Fetch data
         const owner = await guild.fetchOwner();
         const boostCount = guild.premiumSubscriptionCount;
         const boostLevel = guild.premiumTier;
+        const roleCount = guild.roles.cache.size;
+        const memberCount = guild.memberCount;
 
+        // Channels
         const channels = guild.channels.cache;
         const textChannels = channels.filter(c => c.type === 0).size;
         const voiceChannels = channels.filter(c => c.type === 2).size;
         const threadChannels = channels.filter(c => c.isThread()).size;
 
-        const roleCount = guild.roles.cache.size;
+        // Timestamps
+        const createdTimestamp = Math.floor(guild.createdTimestamp / 1000);
+        const createdAt = `<t:${createdTimestamp}:F>`;
+        const createdAgo = `<t:${createdTimestamp}:R>`;
 
-        const memberCount = guild.memberCount;
-
-        const createdAt = `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`;
-        const createdAgo = `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
-
+        // Region
         const region = guild.preferredLocale
             .replace(/-/g, " ")
             .toUpperCase();
 
+        // Embed premium style
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
             .setThumbnail(guild.iconURL({ size: 1024 }))
-            .setTitle(`${E.title} Server Stats — ${guild.name}`)
-            .setDescription(`Here is detailed information about **${guild.name}**.`)
+            .setTitle(`${E.title} Server Statistics — ${guild.name}`)
+            .setDescription(`Detailed information about **${guild.name}**.\nModern, clean, and organized.`)
             .addFields(
                 {
                     name: `${E.owner} Server Owner`,
@@ -53,21 +56,21 @@ module.exports = {
                     inline: true
                 },
                 {
-                    name: `${E.members} Total Members`,
+                    name: `${E.members} Members`,
                     value: `${memberCount}`,
                     inline: true
                 },
                 {
-                    name: `${E.boosts} Boosts`,
-                    value: `Level: **${boostLevel}**\nBoosts: **${boostCount}**`,
+                    name: `${E.boosts} Server Boost`,
+                    value: `Level **${boostLevel}**\nBoosts: **${boostCount}**`,
                     inline: true
                 },
                 {
                     name: `${E.channels} Channels`,
                     value:
-                        `Text: **${textChannels}**\n` +
-                        `Voice: **${voiceChannels}**\n` +
-                        `Threads: **${threadChannels}**`,
+                        `📝 Text: **${textChannels}**\n` +
+                        `🔊 Voice: **${voiceChannels}**\n` +
+                        `#️⃣ Threads: **${threadChannels}**`,
                     inline: true
                 },
                 {
@@ -76,7 +79,7 @@ module.exports = {
                     inline: true
                 },
                 {
-                    name: `${E.created} Created At`,
+                    name: `${E.created} Created`,
                     value: `${createdAt}\n(${createdAgo})`,
                     inline: true
                 },

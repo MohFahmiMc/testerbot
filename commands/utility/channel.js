@@ -18,6 +18,15 @@ module.exports = {
     async execute(interaction) {
         const channel = interaction.options.getChannel("target") || interaction.channel;
 
+        // Emoji Set (mengikuti style about.js)
+        const E = {
+            title: "<:premium_crown:1357260010303918090>",
+            name: "<:utility1:1357261562938790050>",
+            id: "<:blueutility4:1357261525387182251>",
+            type: "<:Utility1:1357261430684123218>",
+            created: "<:discord:1447855769000218724>",
+        };
+
         const channelTypeText = {
             [ChannelType.GuildText]: "Text Channel",
             [ChannelType.GuildVoice]: "Voice Channel",
@@ -30,32 +39,39 @@ module.exports = {
             [ChannelType.GuildForum]: "Forum"
         };
 
+        const createdAt = Math.floor(channel.createdTimestamp / 1000);
+
         const embed = new EmbedBuilder()
-            .setTitle("Channel Information")
-            .setColor("#4A90E2")
+            .setColor(0x2b2d31)
+            .setThumbnail(interaction.guild.iconURL({ size: 512 }))
+            .setTitle(`${E.title} Channel Information — #${channel.name}`)
+            .setDescription(`Here is detailed information about **#${channel.name}**.`)
             .addFields(
                 {
-                    name: "Name",
+                    name: `${E.name} Channel Name`,
                     value: channel.name || "N/A",
                     inline: true
                 },
                 {
-                    name: "ID",
+                    name: `${E.id} Channel ID`,
                     value: channel.id,
                     inline: true
                 },
                 {
-                    name: "Type",
+                    name: `${E.type} Channel Type`,
                     value: channelTypeText[channel.type] || "Unknown",
                     inline: true
                 },
                 {
-                    name: "Created At",
-                    value: `<t:${Math.floor(channel.createdTimestamp / 1000)}:F>`,
+                    name: `${E.created} Created At`,
+                    value: `<t:${createdAt}:F>\n(<t:${createdAt}:R>)`,
                     inline: true
-                }
+                },
             )
-            .setFooter({ text: interaction.guild.name })
+            .setFooter({
+                text: `${interaction.guild.name} • Channel Information`,
+                iconURL: interaction.guild.iconURL()
+            })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });

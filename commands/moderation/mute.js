@@ -1,17 +1,17 @@
-const { 
-    SlashCommandBuilder, 
-    PermissionFlagsBits, 
-    EmbedBuilder 
+const {
+    SlashCommandBuilder,
+    PermissionFlagsBits,
+    EmbedBuilder
 } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("mute")
-        .setDescription("Mute a member by giving them the Muted role")
+        .setDescription("Mute a member by assigning the Muted role.")
         .setDefaultMemberPermissions(PermissionFlagsBits.MuteMembers)
         .addUserOption(option =>
             option.setName("user")
-                .setDescription("The user to mute")
+                .setDescription("User to mute")
                 .setRequired(true)
         )
         .addStringOption(option =>
@@ -22,79 +22,93 @@ module.exports = {
 
     async execute(interaction) {
         const target = interaction.options.getUser("user");
-        const reason = interaction.options.getString("reason") || "No reason provided";
-
+        const reason = interaction.options.getString("reason") || "No reason provided.";
         const member = interaction.guild.members.cache.get(target.id);
+
+        const E = {
+            mute: "<:Utility1:1357261430684123218>",
+            done: "<:premium_crown:1357260010303918090>",
+            error: "❌",
+        };
 
         if (!member) {
             return interaction.reply({
-                content: "The selected user is not in this server.",
+                content: `${E.error} The selected user is not in this server.`,
                 ephemeral: true
             });
         }
 
-        // Cari role "Muted"
-        let mutedRole = interaction.guild.roles.cache.find(role => role.name === "Muted");
+        // ----- ROLE CHECK -----
+        let mutedRole = interaction.guild.roles.cache.find(r => r.name === "Muted");
 
-        // Jika tidak ada, buat otomatis
+        // Auto create Muted role if not exist
         if (!mutedRole) {
             try {
                 mutedRole = await interaction.guild.roles.create({
                     name: "Muted",
-                    color: "#555555",
+                    color: "#5a5a5a",
                     permissions: []
                 });
 
-                // Lock permission di semua channel
-                interaction.guild.channels.cache.forEach(async channel => {
+                // Apply channel overwrite
+                for (const channel of interaction.guild.channels.cache.values()) {
                     try {
-                        await channel.permissionOverwrites.edit(mutedRole, { 
+                        await channel.permissionOverwrites.edit(mutedRole, {
                             SendMessages: false,
-                            Speak: false,
-                            AddReactions: false
+                            AddReactions: false,
+                            Speak: false
                         });
-                    } catch (error) {
-                        console.error(`Failed setting permissions in ${channel.name}`);
+                    } catch (e) {
+                        console.error(`Failed to set permissions in ${channel.name}`);
                     }
-                });
-
-            } catch (err) {
+                }
+            } catch (error) {
                 return interaction.reply({
-                    content: "Failed to create Muted role. Please check permissions.",
+                    content: `${E.error} Failed to create **Muted** role. Please check permissions.`,
                     ephemeral: true
                 });
             }
         }
 
-        // Cek bisa mute atau tidak
+        // Already muted
         if (member.roles.cache.has(mutedRole.id)) {
             return interaction.reply({
-                content: "This user is already muted.",
+                content: `${E.error} This user is already muted.`,
                 ephemeral: true
             });
         }
 
         if (!member.manageable) {
             return interaction.reply({
-                content: "I cannot mute this user. They may have a higher role.",
+                content: `${E.error} I cannot mute this user. They may have a higher role than me.`,
                 ephemeral: true
             });
         }
 
+        // ----- APPLY MUTE -----
         try {
             await member.roles.add(mutedRole, reason);
 
+            // Optional: DM the user
+            try {
+                await target.send(
+                    `🔇 You have been muted in **${interaction.guild.name}**.\n**Reason:** ${reason}`
+                );
+            } catch {}
+
+            // Create embed
             const embed = new EmbedBuilder()
-                .setColor("#2B2D31")
-                .setTitle("Member Muted")
+                .setColor(0x2b2d31)
+                .setTitle(`${E.mute} Member Muted`)
+                .setDescription(`${E.done} Successfully muted **${target.tag}**.`)
                 .addFields(
-                    { name: "User", value: `${target.tag}`, inline: true },
-                    { name: "ID", value: `${target.id}`, inline: true },
-                    { name: "Reason", value: reason }
+                    { name: "👤 User", value: `${target.tag}`, inline: true },
+                    { name: "🆔 ID", value: `${target.id}`, inline: true },
+                    { name: "📝 Reason", value: `${reason}`, inline: false }
                 )
                 .setFooter({
-                    text: interaction.guild.name,
-                    iconURL: interaction.guild.iconURL() || undefined
+                    text: `${interaction.user.tag} • Moderator`,
+                    iconURL: interaction.user.displayAvatarURL()
                 })
                 .setTimestamp();
 
@@ -103,7 +117,7 @@ module.exports = {
         } catch (err) {
             console.error(err);
             return interaction.reply({
-                content: "Failed to mute the user.",
+                content: `${E.error} Failed to mute the user.`,
                 ephemeral: true
             });
         }

@@ -7,39 +7,50 @@ module.exports = {
 
     async execute(interaction, client) {
 
-        // Convert ms → D, H, M, S
-        function formatUptime(ms) {
-            let seconds = Math.floor(ms / 1000);
-            let minutes = Math.floor(seconds / 60);
-            let hours = Math.floor(minutes / 60);
-            let days = Math.floor(hours / 24);
+        const ping3 = "<:ping3:1447452238275416168>";
+        const verify = "<:verify:1357254182356385852>";
+        const developer = "<a:Developer:1357261458014212116>";
+        const crown = "<:premium_crown:1357260010303918090>";
 
-            seconds %= 60;
-            minutes %= 60;
-            hours %= 24;
-
-            return {
-                days,
-                hours,
-                minutes,
-                seconds
-            };
-        }
-
-        const uptime = formatUptime(client.uptime);
+        const uptime = formatTime(client.uptime);
 
         const embed = new EmbedBuilder()
-            .setColor("#22c55e")
-            .setTitle("⏳ Bot Uptime")
-            .setDescription(
-                `**The bot has been running for:**\n` +
-                `\`${uptime.days}d ${uptime.hours}h ${uptime.minutes}m ${uptime.seconds}s\``
+            .setColor("#2b2d31")
+            .setTitle(`${crown} Zephyr Uptime Status`)
+            .setDescription(`Bot is running without interruption. Here is the uptime information:`)
+            .addFields(
+                {
+                    name: `${ping3} Current Uptime`,
+                    value: uptime,
+                    inline: true
+                },
+                {
+                    name: `${verify} Running Since`,
+                    value: `<t:${Math.floor((Date.now() - client.uptime) / 1000)}:R>`,
+                    inline: true
+                },
+                {
+                    name: `${developer} System Status`,
+                    value: "All systems operational.",
+                    inline: true
+                }
             )
             .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
-            .setFooter({ text: `${interaction.guild.name}` })
+            .setFooter({
+                text: "Zephyr Utility • Uptime Monitor",
+                iconURL: client.user.displayAvatarURL()
+            })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
-
     }
 };
+
+// Format uptime sama seperti ping.js
+function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `\`${h}h ${m}m ${sec}s\``;
+}

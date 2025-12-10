@@ -1,8 +1,9 @@
+cat roles.js
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName("roles")
+        .setName("serverroles") // 🔥 Biar beda dari moderation roles
         .setDescription("Show all server roles with member counts."),
 
     async execute(interaction) {
@@ -17,15 +18,30 @@ module.exports = {
             return interaction.editReply("❌ This server has no roles.");
 
         const roleList = roles
-            .map(role => `• **${role.name}** — ${role.members.size} members`)
+            .map(role => `> <@&${role.id}> — **${role.members.size}** members`)
             .join("\n");
 
         const embed = new EmbedBuilder()
-            .setColor("#3498db")
-            .setTitle("📘 Server Roles")
-            .setDescription(roleList.slice(0, 3990)) // safety limit
+            .setColor("#1e1f22")
+            .setAuthor({
+                name: `${interaction.guild.name} — Roles`,
+                iconURL: interaction.guild.iconURL({ size: 256 })
+            })
+            .setDescription(
+                roleList.length > 3900
+                    ? roleList.slice(0, 3900) + "\n\n**…and more roles**"
+                    : roleList
+            )
+            .addFields({
+                name: "📌 Total Roles",
+                value: `**${roles.size} roles**`,
+                inline: true
+            })
             .setThumbnail(interaction.guild.iconURL({ size: 256 }))
-            .setFooter({ text: interaction.guild.name })
+            .setFooter({
+                text: `Requested by ${interaction.user.username}`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });

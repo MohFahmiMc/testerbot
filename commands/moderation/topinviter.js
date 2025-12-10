@@ -14,14 +14,13 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            // Fetch all invites for the guild
             const invites = await interaction.guild.invites.fetch();
 
             if (!invites || invites.size === 0) {
-                return interaction.editReply("There are no invites found in this server.");
+                return interaction.editReply("<:utility8:1357261385947418644> No invites found in this server.");
             }
 
-            // Count usage per inviter
+            // Count invites by inviter
             const inviterMap = {};
 
             invites.forEach(inv => {
@@ -35,40 +34,48 @@ module.exports = {
                 inviterMap[inviterId] += inv.uses;
             });
 
-            // Convert to array and sort
             const sorted = Object.entries(inviterMap)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 10);
 
             if (sorted.length === 0) {
-                return interaction.editReply("No invite usage data available.");
+                return interaction.editReply("<:utility8:1357261385947418644> No invite usage data available.");
             }
 
-            // Build leaderboard text
+            // Build leaderboard
             let description = "";
 
             for (let i = 0; i < sorted.length; i++) {
                 const [userId, uses] = sorted[i];
+
                 const user = await interaction.client.users.fetch(userId).catch(() => null);
 
-                description += `**${i + 1}. ${user ? user.tag : "Unknown User"}** — ${uses} uses\n`;
+                description += `**${i + 1}. ${user ? user.tag : "Unknown User"}** — **${uses} uses**\n`;
             }
 
-            // Build embed
+            // Build premium embed
             const embed = new EmbedBuilder()
-                .setTitle("Top Inviters")
+                .setColor("#2b2d31") // Premium dark
+                .setAuthor({
+                    name: `Top Inviters — ${interaction.guild.name}`,
+                    iconURL: interaction.guild.iconURL({ size: 256 })
+                })
                 .setDescription(description)
-                .setColor("#4A90E2")
-                .setTimestamp()
+                .setThumbnail(interaction.guild.iconURL({ size: 256 }))
                 .setFooter({
-                    text: interaction.guild.name
-                });
+                    text: `Requested by ${interaction.user.tag}`,
+                    iconURL: interaction.user.displayAvatarURL({ size: 256 })
+                })
+                .setTimestamp();
 
             interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error(error);
-            interaction.editReply("Failed to fetch inviter data. Please try again later.");
+
+            return interaction.editReply(
+                "<:utility8:1357261385947418644> Failed to fetch inviter data. Please try again later."
+            );
         }
     },
 };

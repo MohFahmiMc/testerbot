@@ -10,61 +10,66 @@ module.exports = {
         const { guild } = interaction;
 
         const created = `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
-        const boostTier = guild.premiumTier ? `Level ${guild.premiumTier}` : "No Boost";
-        const banner = guild.bannerURL({ size: 1024 }) ?? "No banner";
+        const banner = guild.bannerURL({ size: 1024 });
 
         const embed = new EmbedBuilder()
-            .setColor("#3399ff")
-            .setTitle("📘 Server Information")
+            .setColor("#1e1f22") // dark elegant like about.js
+            .setAuthor({
+                name: `${guild.name} — Server Information`,
+                iconURL: guild.iconURL({ size: 256 })
+            })
             .setThumbnail(guild.iconURL({ size: 256 }))
             .addFields(
                 {
-                    name: "🏷️ Name",
+                    name: "Name",
                     value: guild.name,
                     inline: true
                 },
                 {
-                    name: "🆔 Server ID",
-                    value: `${guild.id}`,
+                    name: "Server ID",
+                    value: guild.id,
                     inline: true
                 },
                 {
-                    name: "👑 Owner",
+                    name: "Owner",
                     value: `<@${guild.ownerId}>`,
                     inline: true
                 },
                 {
-                    name: "👥 Members",
+                    name: "Members",
                     value: `${guild.memberCount}`,
                     inline: true
                 },
                 {
-                    name: "💬 Channels",
+                    name: "Channels",
                     value: `${guild.channels.cache.size}`,
                     inline: true
                 },
                 {
-                    name: "🔐 Roles",
+                    name: "Roles",
                     value: `${guild.roles.cache.size}`,
                     inline: true
                 },
                 {
-                    name: "🚀 Boost Status",
-                    value: `${boostTier}`,
+                    name: "Boost Level",
+                    value: guild.premiumTier ? `Level ${guild.premiumTier}` : "None",
                     inline: true
                 },
                 {
-                    name: "📅 Created",
+                    name: "Created",
                     value: created,
                     inline: true
                 },
                 {
-                    name: "🖼️ Banner",
-                    value: banner === "No banner" ? "No banner" : "[View Banner](" + banner + ")",
+                    name: "Banner",
+                    value: banner ? `[Click to view](${banner})` : "No banner uploaded",
                     inline: false
                 }
             )
-            .setFooter({ text: guild.name })
+            .setFooter({
+                text: `Requested by ${interaction.user.username}`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });

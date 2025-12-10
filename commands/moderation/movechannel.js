@@ -1,40 +1,75 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("movechannel")
-        .setDescription("Move a channel or category to a new position")
-        .addStringOption(option => 
-            option.setName("type")
-                  .setDescription("channel or category")
-                  .setRequired(true)
-                  .addChoices(
-                      { name: "Channel", value: "channel" },
-                      { name: "Category", value: "category" }
-                  ))
-        .addChannelOption(option => 
-            option.setName("target")
-                  .setDescription("The channel or category to move")
-                  .setRequired(true))
-        .addIntegerOption(option => 
+        .setDescription("Move a channel or category to a new position.")
+        .addChannelOption(option =>
+            option.setName("channel")
+                .setDescription("Select the channel or category to move")
+                .setRequired(true)
+        )
+        .addIntegerOption(option =>
             option.setName("position")
-                  .setDescription("New position (1 = top)")
-                  .setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    
+                .setDescription("New position (1 = top)")
+                .setRequired(true)
+        )
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
     async execute(interaction) {
-        const type = interaction.options.getString("type");
-        const target = interaction.options.getChannel("target");
+        const channel = interaction.options.getChannel("channel");
         const position = interaction.options.getInteger("position");
 
-        if (!target || !position) return interaction.reply({ content: "❌ Invalid options.", ephemeral: true });
+        // Emoji theme
+        const E = {
+            move: "<:Utility1:1357261430684123218>",
+            done: "<:premium_crown:1357260010303918090>",
+            error: "❌",
+        };
+
+        if (!channel) {
+            return interaction.reply({
+                content: `${E.error} Invalid channel.`,
+                ephemeral: true
+            });
+        }
 
         try {
-            await target.setPosition(position - 1); // Discord counts from 0
-            await interaction.reply(`✅ Successfully moved ${type} **${target.name}** to position **${position}**.`);
+            // Discord position index dimulai dari 0
+            await channel.setPosition(position - 1);
+
+            const embed = new EmbedBuilder()
+                .setColor(0x2b2d31)
+                .setTitle(`${E.move} Channel Moved`)
+                .setDescription(
+                    `${E.done} Successfully moved **${channel.name}** to position **${position}**.`
+                )
+                .addFields(
+                    {
+                        name: "📁 Type",
+                        value: channel.type === 4 ? "Category" : "Channel",
+                        inline: true
+                    },
+                    {
+                        name: "📌 New Position",
+                        value: `${position}`,
+                        inline: true
+                    }
+                )
+                .setFooter({
+                    text: `Requested by ${interaction.user.tag}`,
+                    iconURL: interaction.user.displayAvatarURL()
+                })
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [embed] });
+
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: `❌ Failed to move ${type}: ${error.message}`, ephemeral: true });
+            return interaction.reply({
+                content: `${E.error} Failed to move channel: **${error.message}**`,
+                ephemeral: true
+            });
         }
-    },
+    }
 };
