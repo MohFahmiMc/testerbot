@@ -25,6 +25,8 @@ function trackCommand(commandName, guildName) {
 }
 
 // ============================
+const anonymousHandler = require("../anonymousHandler");
+
 module.exports = {
     name: "interactionCreate",
     async execute(interaction, client) {
@@ -63,7 +65,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle("<:utility8:1357261385947418644> Command Error")
                     .setDescription(`An unexpected error occurred while executing this command.\nPlease join our support server for assistance: [Support Server](https://discord.gg/FkvM362RJu)`)
-                    .setColor("#2b2d31") // grey/dark
+                    .setColor("#2b2d31")
                     .setTimestamp()
                     .setFooter({ text: client.user.username, iconURL: client.user.displayAvatarURL() });
 
@@ -71,6 +73,13 @@ module.exports = {
                     ? interaction.followUp({ embeds: [embed], ephemeral: true })
                     : interaction.reply({ embeds: [embed], ephemeral: true });
             }
+        }
+
+        // ============================
+        // 🔹 ANONYMOUS SYSTEM HANDLER
+        // ============================
+        if (interaction.isButton() || interaction.isModalSubmit()) {
+            await anonymousHandler(interaction);
         }
     }
 };
