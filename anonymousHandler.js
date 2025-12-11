@@ -59,7 +59,7 @@ module.exports = async (interaction) => {
 
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle(`🆔 Anonymous #${id}`)
+            .setTitle(`<a:peoplespaper:1447855732061110406> Anonymous #${id}`)
             .setDescription(messageText)
             .setFooter({
                 text: "Anonymous Message",
@@ -79,7 +79,7 @@ module.exports = async (interaction) => {
 
         await interaction.channel.send({ embeds: [embed], components: [buttons] });
 
-        return interaction.reply({ content: "Anonymous message sent!", ephemeral: true });
+        return interaction.reply({ content: "<:gmail:1447452231594016889> Anonymous message sent!", ephemeral: true });
     }
 
     // ================================
@@ -118,7 +118,7 @@ module.exports = async (interaction) => {
 
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle(`💬 Reply to Anonymous #${id}`)
+            .setTitle(`<a:peoplespaper:1447855732061110406> Reply to Anonymous #${id}`)
             .setDescription(text)
             .setFooter({
                 text: "Anonymous Reply",
