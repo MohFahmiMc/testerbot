@@ -1,14 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const axios = require("axios");
-const FormData = require("form-data");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("imgur")
-        .setDescription("Upload gambar ke hosting cepat dan dapatkan link HD.")
+        .setDescription("Upload an image to Imgur and get the HD link.")
         .addAttachmentOption(opt =>
             opt.setName("image")
-                .setDescription("Gambar yang ingin diupload")
+                .setDescription("Select the image to upload")
                 .setRequired(true)
         ),
 
@@ -17,86 +16,52 @@ module.exports = {
 
         if (!file || !file.contentType?.startsWith("image/")) {
             return interaction.reply({
-                content: "❌ File yang kamu upload bukan gambar!",
+                content: "The uploaded file is not an image.",
                 ephemeral: true
             });
         }
 
-        // Kirim pesan awal
-        let statusMsg = await interaction.reply({
-            content: "⏳ **Sedang memulai upload...**",
-            fetchReply: true
-        });
-
-        // ➤ Fungsi update progres
-        async function updateProgress(persen) {
-            const barFilled = Math.round(persen / 10);
-            const bar = "█".repeat(barFilled) + "░".repeat(10 - barFilled);
-
-            await statusMsg.edit(`📤 Uploading... **${persen}%**\n\`\`\`[${bar}]\`\`\``);
-        }
+        await interaction.deferReply();
 
         try {
-            // Step 1: Download gambar (simulasi progress 0–40%)
-            for (let p = 0; p <= 40; p += 10) {
-                await updateProgress(p);
-                await new Promise(r => setTimeout(r, 200));
-            }
-
+            // Download image
             const imgBuffer = Buffer.from(
                 (await axios.get(file.url, { responseType: "arraybuffer" })).data
             );
 
-            // Step 2: Proses file (40–70%)
-            for (let p = 50; p <= 70; p += 10) {
-                await updateProgress(p);
-                await new Promise(r => setTimeout(r, 150));
-            }
-
-            // Step 3: Upload ke hosting (70–100%)
-            const form = new FormData();
-            form.append("file", imgBuffer, file.name);
-
-            for (let p = 75; p <= 95; p += 10) {
-                await updateProgress(p);
-                await new Promise(r => setTimeout(r, 150));
-            }
-
+            // Upload to Imgur
             const upload = await axios.post(
-                "https://upload.imge.us/api/upload",
-                form,
-                { headers: form.getHeaders() }
+                "https://api.imgur.com/3/image",
+                imgBuffer,
+                {
+                    headers: {
+                        Authorization: `Client-ID ${process.env.IMGUR_CLIENT_ID}`,
+                        "Content-Type": "application/octet-stream"
+                    }
+                }
             );
 
-            const link = upload.data.file.url;
+            const link = upload.data.data.link;
 
-            await updateProgress(100);
-
-            // === EMBED AKHIR ===
+            // Create embed
             const embed = new EmbedBuilder()
-                .setTitle("🎉 Upload Berhasil!")
-                .setDescription("Gambar berhasil diupload ke hosting cepat.\nKlik link di bawah untuk membuka.")
-                .setColor("#00c7ff")
+                .setTitle("Image Uploaded Successfully")
+                .setDescription(`Your image has been uploaded to Imgur.`)
+                .setColor("#2b2d31") // grey/dark
                 .addFields(
-                    { name: "📎 Link:", value: link },
-                    { name: "🖼 File:", value: file.name }
+                    { name: "File Name", value: file.name, inline: true },
+                    { name: "Imgur Link", value: `[Click here to view](${link})`, inline: true }
                 )
                 .setImage(link)
                 .setThumbnail(client.user.displayAvatarURL())
-                .setFooter({
-                    text: `Diminta oleh ${interaction.user.username}`,
-                    iconURL: interaction.user.displayAvatarURL()
-                })
+                .setFooter({ text: client.user.username, iconURL: client.user.displayAvatarURL() })
                 .setTimestamp();
 
-            return statusMsg.edit({
-                content: "",
-                embeds: [embed]
-            });
+            return interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            console.error("UPLOAD ERROR:", err);
-            return statusMsg.edit("❌ Upload gagal! Hosting sedang down atau file terlalu besar.");
+            console.error("IMGUR UPLOAD ERROR:", err);
+            return interaction.editReply("Upload failed! Please try again or check the file size.");
         }
     }
 };
