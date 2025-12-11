@@ -10,7 +10,7 @@ module.exports = {
         .setDescription("Send a customizable announcement.")
 
         // ======================
-        // ALL REQUIRED OPTIONS FIRST
+        // REQUIRED OPTIONS
         // ======================
         .addStringOption(o =>
             o.setName("title")
@@ -42,9 +42,19 @@ module.exports = {
                 )
                 .setRequired(true)
         )
+        .addRoleOption(o =>
+            o.setName("mention_role")
+                .setDescription("Role to mention in the announcement")
+                .setRequired(false)
+        )
+        .addUserOption(o =>
+            o.setName("mention_user")
+                .setDescription("User to mention in the announcement")
+                .setRequired(false)
+        )
 
         // ======================
-        // OPTIONAL OPTIONS (AFTER REQUIRED)
+        // OPTIONAL OPTIONS
         // ======================
         .addAttachmentOption(o =>
             o.setName("image")
@@ -91,6 +101,8 @@ module.exports = {
         const footer = interaction.options.getString("footer");
         const footerSource = interaction.options.getString("footer_icon_source");
         const image = interaction.options.getAttachment("image");
+        const role = interaction.options.getRole("mention_role");
+        const user = interaction.options.getUser("mention_user");
 
         if (!validateHexColor(colorInput)) {
             return interaction.editReply("❌ Invalid HEX color! Use #rrggbb.");
@@ -139,7 +151,12 @@ module.exports = {
             embeds.push(embed2);
         }
 
-        await interaction.channel.send({ embeds });
+        // Build mentions string
+        let mentions = "";
+        if (role) mentions += `<@&${role.id}> `;
+        if (user) mentions += `<@${user.id}>`;
+
+        await interaction.channel.send({ content: mentions || null, embeds });
 
         await interaction.editReply("✅ Announcement sent!");
     }
