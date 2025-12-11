@@ -1,14 +1,12 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder,
-    PermissionFlagsBits
+    EmbedBuilder
 } = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("topinviter")
-        .setDescription("Show the top inviters in this server.")
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDescription("Show the top inviters in this server."),
 
     async execute(interaction) {
         await interaction.deferReply();
