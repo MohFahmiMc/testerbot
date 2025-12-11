@@ -20,7 +20,7 @@ module.exports = {
 
     async execute(interaction) {
         const baseDir = path.join(__dirname, "..");
-        const categories = ["fun", "utility", "music", "CUSTOMERSERVICE", "moderation"];
+        const categories = ["fun", "utility", "CUSTOMERSERVICE", "moderation"];
         let page = 0;
 
         const selectedCommand = interaction.options.getString("command")?.toLowerCase();
