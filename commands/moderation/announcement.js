@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
-// Validate HEX color (#ffffff)
 function validateHexColor(color) {
     return /^#?[0-9A-Fa-f]{6}$/.test(color);
 }
@@ -10,7 +9,9 @@ module.exports = {
         .setName("announcement")
         .setDescription("Send a customizable announcement.")
 
-        // EMBED 1
+        // ======================
+        // ALL REQUIRED OPTIONS FIRST
+        // ======================
         .addStringOption(o =>
             o.setName("title")
                 .setDescription("Embed title.")
@@ -25,11 +26,6 @@ module.exports = {
             o.setName("color")
                 .setDescription("Embed color (#2b2d31).")
                 .setRequired(true)
-        )
-        .addAttachmentOption(o =>
-            o.setName("image")
-                .setDescription("Image for embed 1.")
-                .setRequired(false)
         )
         .addStringOption(o =>
             o.setName("footer")
@@ -47,7 +43,14 @@ module.exports = {
                 .setRequired(true)
         )
 
-        // EMBED 2 (OPTIONAL)
+        // ======================
+        // OPTIONAL OPTIONS (AFTER REQUIRED)
+        // ======================
+        .addAttachmentOption(o =>
+            o.setName("image")
+                .setDescription("Image for embed 1.")
+                .setRequired(false)
+        )
         .addStringOption(o =>
             o.setName("title2")
                 .setDescription("Second embed title (optional).")
@@ -82,7 +85,6 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true });
 
-        // --- Get main embed options ---
         const title = interaction.options.getString("title");
         const description = interaction.options.getString("description");
         const colorInput = interaction.options.getString("color");
@@ -90,75 +92,55 @@ module.exports = {
         const footerSource = interaction.options.getString("footer_icon_source");
         const image = interaction.options.getAttachment("image");
 
-        // Color validation
         if (!validateHexColor(colorInput)) {
-            return interaction.editReply({
-                content: "❌ Invalid HEX color! Use format like `#2b2d31`.",
-                ephemeral: true
-            });
+            return interaction.editReply("❌ Invalid HEX color! Use #rrggbb.");
         }
 
         const color = colorInput.startsWith("#") ? colorInput : `#${colorInput}`;
 
-        // Footer icon resolver
         let footerIcon =
             footerSource === "server" ? interaction.guild.iconURL() :
             footerSource === "bot" ? interaction.client.user.displayAvatarURL() :
             null;
 
-        // --- EMBED 1 ---
         const embed1 = new EmbedBuilder()
             .setColor(color)
             .setTitle(title)
             .setDescription(description)
-            .setTimestamp();
+            .setTimestamp()
+            .setFooter({ text: footer, iconURL: footerIcon || undefined });
 
-        if (footer)
-            embed1.setFooter({
-                text: footer,
-                iconURL: footerIcon || undefined
-            });
-
-        if (image)
-            embed1.setImage(image.url);
+        if (image) embed1.setImage(image.url);
 
         const embeds = [embed1];
 
-        // --- Get embed 2 options ---
         const title2 = interaction.options.getString("title2");
         const description2 = interaction.options.getString("description2");
         const footer2 = interaction.options.getString("footer2");
         const footer2Source = interaction.options.getString("footer2_icon_source");
         const image2 = interaction.options.getAttachment("image2");
 
-        // If user fills at least one → build Embed 2
         if (title2 || description2 || footer2 || image2) {
             const embed2 = new EmbedBuilder().setColor(color).setTimestamp();
 
             if (title2) embed2.setTitle(title2);
             if (description2) embed2.setDescription(description2);
 
-            // footer icon resolver (embed 2)
-            let footer2Icon = null;
-            if (footer2Source === "server") footer2Icon = interaction.guild.iconURL();
-            if (footer2Source === "bot") footer2Icon = interaction.client.user.displayAvatarURL();
+            let footer2Icon =
+                footer2Source === "server" ? interaction.guild.iconURL() :
+                footer2Source === "bot" ? interaction.client.user.displayAvatarURL() :
+                null;
 
-            if (footer2) {
-                embed2.setFooter({
-                    text: footer2,
-                    iconURL: footer2Icon || undefined
-                });
-            }
+            if (footer2)
+                embed2.setFooter({ text: footer2, iconURL: footer2Icon || undefined });
 
-            if (image2)
-                embed2.setImage(image2.url);
+            if (image2) embed2.setImage(image2.url);
 
             embeds.push(embed2);
         }
 
-        // Send to channel
         await interaction.channel.send({ embeds });
 
-        await interaction.editReply("Announcement sent successfully!");
+        await interaction.editReply("✅ Announcement sent!");
     }
 };
