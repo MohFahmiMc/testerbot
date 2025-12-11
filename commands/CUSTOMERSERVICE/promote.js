@@ -6,71 +6,59 @@ const {
     ButtonStyle,
 } = require("discord.js");
 
-require("dotenv").config(); // pastikan ada di project
+require("dotenv").config();
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("promote")
-        .setDescription("Show promotional info"),
+        .setDescription("Show bot promotion / Tampilkan promo bot"),
 
     async execute(interaction) {
         const OWNER_ID = process.env.OWNER_ID;
-        const CLIENT_ID = process.env.CLIENT_ID;
 
-        const INVITE_LINK = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
+        // Gunakan invite bot yang sudah kamu kasih
+        const INVITE_LINK = "https://discord.com/oauth2/authorize?client_id=1441022662699909182&permissions=8&integration_type=0&scope=bot";
 
         const embed = new EmbedBuilder()
-            .setTitle("🚀 Jual & Buy Discord Bot Source – Professional Setup")
+            .setTitle("🚀 Jual & Buy Discord Bot Source – Updated Features")
             .setDescription(
-                "**ID:** Bot Discord full fitur, siap pakai, struktur rapi, dapat langsung dijalankan di hosting manapun.\n" +
-                "**EN:** Full-featured Discord bot, professionally structured, ready to deploy instantly on any hosting."
+                "**ID:** Bot Discord lengkap, siap pakai, fitur baru & rapi.\n" +
+                "**EN:** Full-featured Discord bot, ready to deploy, updated features & well-structured."
             )
             .addFields(
                 {
                     name: "🛡 Moderation System",
                     value:
-                    "**ID:** Ban, Kick, Mute, Unmute, Clear chat, Slowmode, Lock/Unlock channel, Role hierarchy, Nickname system.\n" +
-                    "**EN:** Ban, Kick, Mute, Unmute, Bulk Delete, Slowmode, Channel Locking, Role hierarchy visibility, Nickname management."
+                    "**ID:** Ban, Kick, Mute, Unmute, Clear/Bulk delete, Slowmode, Lock/Unlock, Role hierarchy, Nickname, Audit log, Server stats, Top inviter, Announcement, Say command.\n" +
+                    "**EN:** Ban, Kick, Mute, Unmute, Clear/Bulk delete, Slowmode, Lock/Unlock, Role hierarchy, Nickname, Audit log, Server stats, Top inviter, Announcement, Say command."
                 },
                 {
-                    name: "🛠 Utility Commands",
+                    name: "🛠 Utility",
                     value:
-                    "**ID:** Uptime, Server info, User info, Reminder, Member counter, Invite command, Channel setup.\n" +
-                    "**EN:** Uptime, Server/User Analytics, Reminder system, Member counter, Invite generator, Auto channel setup."
+                    "**ID:** Uptime, Server info, User info, Member count, Roles info, Channel info, Reminder, AFK system, Avatar, About, Bot update, Invite.\n" +
+                    "**EN:** Uptime, Server info, User info, Member count, Roles info, Channel info, Reminder, AFK system, Avatar, About, Bot update, Invite."
                 },
                 {
                     name: "🎮 Fun Commands",
                     value:
-                    "**ID:** Meme, random meme video, top command usage, umur akun join server.\n" +
-                    "**EN:** Random meme generator, top usage tracking, join age analytics."
+                    "**ID:** Meme, Meme video, Color command, Top command usage, Level, Server join age.\n" +
+                    "**EN:** Meme, Meme video, Color command, Top command usage, Level, Server join age."
                 },
                 {
-                    name: "📦 Struktur Profesional",
+                    name: "⚙ System & Structure",
                     value:
-                    "**ID:** commands/, events/, utils/, handlers/, deploy tools, database JSON.\n" +
-                    "**EN:** Modular file layout, auto-loader setup, deploy-ready architecture."
+                    "**ID:** Modular commands/events handler, JSON-based data (admins, warns, triggers, welcome, autorole), auto moderation config.\n" +
+                    "**EN:** Modular commands/events handler, JSON-based data (admins, warns, triggers, welcome, autorole), auto moderation config."
                 },
                 {
                     name: "💰 Harga / Pricing",
                     value:
-                    "**ID:**\n" +
-                    "• BASIC (400K – 600K) → Source Only\n" +
-                    "• PRO (700K – 1.2JT) → Source + Setup\n" +
-                    "• PREMIUM (>1.2JT) → Custom fitur + maintenance\n\n" +
-                    "**EN:**\n" +
-                    "• BASIC ($25–$40) → Source Only\n" +
-                    "• PRO ($45–$80) → Installation Included\n" +
-                    "• PREMIUM ($100+) → Custom Features & Support"
-                },
-                {
-                    name: "💬 Contact",
-                    value:
-                    "**ID:** Klik tombol bawah untuk menghubungi penjual.\n" +
-                    "**EN:** Click a button below to contact the developer directly."
+                    "**ID:**\n• BASIC (400K–600K) → Source Only\n• PRO (700K–1.2JT) → Source + Setup\n• PREMIUM (>1.2JT) → Custom fitur + maintenance\n" +
+                    "**EN:**\n• BASIC ($25–$40) → Source Only\n• PRO ($45–$80) → Installation Included\n• PREMIUM ($100+) → Custom features & support"
                 }
             )
             .setColor("#7f8c8d")
-            .setFooter({ text: "Official Bot Promotion • Limited Slots Available" })
+            .setFooter({ text: "Official Bot Promotion • Click buttons below" })
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -90,9 +78,21 @@ module.exports = {
                 .setURL(INVITE_LINK)
         );
 
+        // Reply publik supaya semua orang bisa lihat
         await interaction.reply({
             embeds: [embed],
             components: [row],
+            ephemeral: false, // publik
         });
+
+        // Opsional: kirim DM ke owner kalau mau notif ada yang gunakan promote
+        try {
+            const ownerUser = await interaction.client.users.fetch(OWNER_ID);
+            await ownerUser.send(
+                `⚡ ${interaction.user.tag} menggunakan /promote di server **${interaction.guild.name}** (${interaction.guild.id})`
+            );
+        } catch (err) {
+            console.log("Gagal mengirim DM ke owner:", err);
+        }
     }
 };
