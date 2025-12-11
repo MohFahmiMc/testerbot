@@ -1,168 +1,129 @@
 const {
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle,
-    ActionRowBuilder,
-    EmbedBuilder,
-    ButtonBuilder,
-    ButtonStyle
+    TextInputStyle
 } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
+
+const dbPath = path.join(__dirname, "./data/anonymous.json");
+
+// Load or create DB
+function loadDB() {
+    if (!fs.existsSync(dbPath))
+        fs.writeFileSync(dbPath, JSON.stringify({ lastId: 0, messages: {} }, null, 2));
+    return JSON.parse(fs.readFileSync(dbPath, "utf8"));
+}
+function saveDB(data) {
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+}
 
 module.exports = async (interaction) => {
+    const db = loadDB();
 
-    // ================================
-    // CREATE NEW ANONYMOUS CHAT
-    // ================================
+    // ============================
+    // CREATE ANONYMOUS CHAT
+    // ============================
     if (interaction.customId === "anon_create") {
-
         const modal = new ModalBuilder()
-            .setCustomId("modal_anon_create")
-            .setTitle("Create Anonymous Message!");
+            .setCustomId("anon_modal_create")
+            .setTitle("Create Anonymous Message");
 
-        const userIdInput = new TextInputBuilder()
-            .setCustomId("targetId")
-            .setLabel("Target User ID")
-            .setPlaceholder("123456789012345678")
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-        const messageInput = new TextInputBuilder()
-            .setCustomId("messageContent")
-            .setLabel("Message Content")
-            .setPlaceholder("Type your anonymous message...")
+        const input = new TextInputBuilder()
+            .setCustomId("anon_text")
+            .setLabel("Your anonymous message")
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true);
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(userIdInput),
-            new ActionRowBuilder().addComponents(messageInput)
-        );
+        const row = new ActionRowBuilder().addComponents(input);
+        modal.addComponents(row);
 
-        return await interaction.showModal(modal);
+        return interaction.showModal(modal);
     }
 
-    // ================================
-    // SEND ANONYMOUS MESSAGE
-    // ================================
-    if (interaction.customId === "modal_anon_create") {
+    // When modal submitted
+    if (interaction.customId === "anon_modal_create") {
+        let messageText = interaction.fields.getTextInputValue("anon_text");
 
-        const targetId = interaction.fields.getTextInputValue("targetId");
-        const messageContent = interaction.fields.getTextInputValue("messageContent");
+        // make unique ID
+        db.lastId++;
+        const id = db.lastId;
 
-        const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
-
-        if (!targetUser) {
-            return interaction.reply({
-                content: "❌ Invalid user ID.",
-                ephemeral: true
-            });
-        }
-
-        const anonChannel = interaction.guild.channels.cache.find(
-            ch => ch.name === "anonymous-chat"
-        );
-
-        if (!anonChannel) {
-            return interaction.reply({
-                content: "❌ Channel `anonymous-chat` tidak ditemukan.",
-                ephemeral: true
-            });
-        }
+        db.messages[id] = {
+            author: interaction.user.id,
+            replies: []
+        };
+        saveDB(db);
 
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle("📨 Anonymous Message")
-            .setDescription(messageContent)
-            .setTimestamp()
-            .setFooter({
-                text: "Anonymous",
-                iconURL: interaction.client.user.displayAvatarURL()
-            });
+            .setTitle(`🆔 Anonymous #${id}`)
+            .setDescription(messageText)
+            .setFooter({ text: "Anonymous message" });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId("anon_reply")
+                .setCustomId(`anon_reply_${id}`)
                 .setLabel("Reply")
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId("anon_create")
-                .setLabel("Create New")
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        await anonChannel.send({ embeds: [embed], components: [row] });
+        await interaction.channel.send({ embeds: [embed], components: [row] });
 
-        return interaction.reply({
-            content: "Your anonymous message has been sent.",
-            ephemeral: true
-        });
+        return interaction.reply({ content: "Anonymous message sent!", ephemeral: true });
     }
 
-    // ================================
-    // OPEN REPLY MODAL
-    // ================================
-    if (interaction.customId === "anon_reply") {
+    // ============================
+    // REPLY TO ANON MESSAGE
+    // ============================
+    if (interaction.customId.startsWith("anon_reply_")) {
+        const id = interaction.customId.split("_")[2];
+
+        if (!db.messages[id])
+            return interaction.reply({ content: "This anonymous message no longer exists.", ephemeral: true });
 
         const modal = new ModalBuilder()
-            .setCustomId("modal_anon_reply")
-            .setTitle("Reply to Anonymous Message");
+            .setCustomId(`anon_modal_reply_${id}`)
+            .setTitle(`Reply to Anonymous #${id}`);
 
-        const replyInput = new TextInputBuilder()
-            .setCustomId("replyMessage")
-            .setLabel("Your Reply")
+        const input = new TextInputBuilder()
+            .setCustomId("anon_reply_text")
+            .setLabel("Your reply")
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true);
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(replyInput)
-        );
+        const row = new ActionRowBuilder().addComponents(input);
+        modal.addComponents(row);
 
-        return await interaction.showModal(modal);
+        return interaction.showModal(modal);
     }
 
-    // ================================
-    // SEND REPLY
-    // ================================
-    if (interaction.customId === "modal_anon_reply") {
+    // Reply modal
+    if (interaction.customId.startsWith("anon_modal_reply_")) {
+        const id = interaction.customId.split("_")[3];
+        const text = interaction.fields.getTextInputValue("anon_reply_text");
 
-        const replyMsg = interaction.fields.getTextInputValue("replyMessage");
-
-        const anonChannel = interaction.guild.channels.cache.find(
-            ch => ch.name === "anonymous-chat"
-        );
-
-        if (!anonChannel) {
-            return interaction.reply({
-                content: "❌ Channel `anonymous-chat` tidak ditemukan.",
-                ephemeral: true
-            });
-        }
+        db.messages[id].replies.push({
+            user: interaction.user.id,
+            text
+        });
+        saveDB(db);
 
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle("💬 Anonymous Reply")
-            .setDescription(replyMsg)
-            .setTimestamp()
-            .setFooter({
-                text: "Anonymous",
-                iconURL: interaction.client.user.displayAvatarURL()
-            });
+            .setTitle(`Reply to Anonymous #${id}`)
+            .setDescription(text)
+            .setFooter({ text: "Anonymous reply" });
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("anon_reply")
-                .setLabel("Reply Again")
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId("anon_create")
-                .setLabel("Create New Chat")
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        await anonChannel.send({ embeds: [embed], components: [row] });
+        // reply to original message
+        await interaction.channel.send({ embeds: [embed] });
 
         return interaction.reply({
-            content: "Reply sent anonymously.",
+            content: "Reply sent!",
             ephemeral: true
         });
     }
