@@ -6,13 +6,6 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require("discord.js");
-const fs = require("fs");
-const path = require("path");
-
-const anonDB = path.join(__dirname, "../data/anonymous.json");
-
-// Ensure DB exists
-if (!fs.existsSync(anonDB)) fs.writeFileSync(anonDB, JSON.stringify({ lastId: 0 }, null, 2));
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -43,10 +36,13 @@ module.exports = {
         }
 
         const embed = new EmbedBuilder()
-            .setColor(0x2b2d31)
-            .setTitle("🔒 Anonymous Chat")
-            .setDescription("Click the button below to send an anonymous message.")
-            .setFooter({ text: interaction.client.user.username });
+            .setColor("#2b2d31")
+            .setTitle("🔒 Anonymous Chat System")
+            .setDescription("Click the button below to create an anonymous message.\nYour identity will remain **hidden**.")
+            .setFooter({
+                text: interaction.client.user.username,
+                iconURL: interaction.client.user.displayAvatarURL()
+            });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
