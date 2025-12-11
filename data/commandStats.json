@@ -76,5 +76,23 @@
     "servers": {
       "Scarily  | Chat Servers": 1
     }
+  },
+  "timestamp": {
+    "total": 1,
+    "servers": {
+      "Scarily  | Chat Servers": 1
+    }
+  },
+  "translate": {
+    "total": 2,
+    "servers": {
+      "Scarily  | Chat Servers": 2
+    }
+  },
+  "setup-anonymous": {
+    "total": 1,
+    "servers": {
+      "Scarily  | Chat Servers": 1
+    }
   }
 }
