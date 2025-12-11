@@ -7,7 +7,7 @@ const {
 const translate = require("@vitalets/google-translate-api");
 
 // Daftar bahasa ISO-639-1 (lengkap)
-const languages = require("../utils/languageList.json");
+const languages = require("../../utils/languageList.json");
 
 module.exports = {
     data: new SlashCommandBuilder()
