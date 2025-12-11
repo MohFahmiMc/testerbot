@@ -25,7 +25,7 @@ function trackCommand(commandName, guildName) {
 }
 
 // ============================
-const anonymousHandler = require("../anonymousHandler");
+const anonymousHandler = require("../anonymouseHandler");
 
 module.exports = {
     name: "interactionCreate",
