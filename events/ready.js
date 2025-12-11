@@ -16,8 +16,8 @@ module.exports = {
         const activities = [
             () => `Developer ${developer}`,
             () => `Playing ${client.guilds.cache.size} Servers`,
-            () => `Powered by Scarily`,
-            () => `Support For Add Me`,
+            () => `/help`,
+            () => `/invite`,
         ];
 
         let i = 0;
