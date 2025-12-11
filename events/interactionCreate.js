@@ -1,23 +1,11 @@
-const { ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionsBitField } = require("discord.js");
+const { PermissionsBitField, EmbedBuilder } = require("discord.js");
+
+// ----- GLOBAL COMMAND STATS -----
 const fs = require("fs");
 const path = require("path");
 
-const dataPath = path.join(__dirname, "../giveaways/data.json");
 const statsPath = path.join(__dirname, "../data/commandStats.json");
 
-// ----- GIVEAWAY DATABASE -----
-function loadData() {
-    if (!fs.existsSync(dataPath)) {
-        fs.writeFileSync(dataPath, JSON.stringify({ giveaways: [] }, null, 2));
-    }
-    return JSON.parse(fs.readFileSync(dataPath, "utf8"));
-}
-
-function saveData(data) {
-    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
-// ----- GLOBAL COMMAND STATS -----
 function loadStats() {
     if (!fs.existsSync(statsPath)) fs.writeFileSync(statsPath, JSON.stringify({}, null, 2));
     return JSON.parse(fs.readFileSync(statsPath, "utf8"));
@@ -70,57 +58,19 @@ module.exports = {
                 await command.execute(interaction, client);
             } catch (err) {
                 console.error(err);
+
+                // === Embed error message ===
+                const embed = new EmbedBuilder()
+                    .setTitle("<:utility8:1357261385947418644> Command Error")
+                    .setDescription(`An unexpected error occurred while executing this command.\nPlease join our support server for assistance: [Support Server](https://discord.gg/FkvM362RJu)`)
+                    .setColor("#2b2d31") // grey/dark
+                    .setTimestamp()
+                    .setFooter({ text: client.user.username, iconURL: client.user.displayAvatarURL() });
+
                 return interaction.replied || interaction.deferred
-                    ? interaction.followUp({ content: "An unexpected error occurred.", ephemeral: true })
-                    : interaction.reply({ content: "An unexpected error occurred.", ephemeral: true });
+                    ? interaction.followUp({ embeds: [embed], ephemeral: true })
+                    : interaction.reply({ embeds: [embed], ephemeral: true });
             }
-        }
-
-        // ============================
-        // 🔹 GIVEAWAY JOIN BUTTON
-        // ============================
-        if (interaction.isButton() && interaction.customId.startsWith("gw_join_")) {
-            const id = interaction.customId.replace("gw_join_", "");
-            const data = loadData();
-            const gw = data.giveaways.find(g => g.id === id);
-
-            if (!gw) return interaction.reply({ content: "Giveaway not found.", ephemeral: true });
-            if (gw.paused) return interaction.reply({ content: "This giveaway is paused.", ephemeral: true });
-
-            gw.entrants = gw.entrants || [];
-
-            if (gw.requiredRoleId && interaction.member?.roles && !interaction.member.roles.cache.has(gw.requiredRoleId)) {
-                return interaction.reply({ content: "You do not meet the role requirement.", ephemeral: true });
-            }
-
-            if (!gw.entrants.includes(interaction.user.id)) {
-                gw.entrants.push(interaction.user.id);
-
-                if (gw.extraRoleId && interaction.member?.roles?.cache.has(gw.extraRoleId)) {
-                    gw.entrants.push(interaction.user.id); // extra chance
-                }
-
-                saveData(data);
-                trackCommand(`giveaway_join`, interaction.guild?.name);
-            }
-
-            // Update button
-            try {
-                const msg = await interaction.channel.messages.fetch(gw.messageId);
-                if (msg) {
-                    const uniqueCount = new Set(gw.entrants).size;
-                    const button = new ButtonBuilder()
-                        .setCustomId(`gw_join_${gw.id}`)
-                        .setLabel(`Join Giveaway (${uniqueCount} joined)`)
-                        .setStyle(ButtonStyle.Primary);
-                    const row = new ActionRowBuilder().addComponents(button);
-                    await msg.edit({ components: [row] }).catch(() => {});
-                }
-            } catch (e) {
-                console.log("Failed updating button:", e.message);
-            }
-
-            return interaction.reply({ content: "You have joined the giveaway.", ephemeral: true });
         }
     }
 };

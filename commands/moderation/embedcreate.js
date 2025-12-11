@@ -6,35 +6,32 @@ function validateHexColor(color) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName("announcement")
-        .setDescription("Send a customizable announcement.")
-
-        // ======================
-        // REQUIRED OPTIONS
-        // ======================
+        .setName("embedcreate")
+        .setDescription("Create a custom embed message.")
+        // ===== REQUIRED OPTIONS =====
         .addStringOption(o =>
             o.setName("title")
-                .setDescription("Embed title.")
+                .setDescription("Embed title")
                 .setRequired(true)
         )
         .addStringOption(o =>
             o.setName("description")
-                .setDescription("Embed description.")
+                .setDescription("Embed description")
                 .setRequired(true)
         )
         .addStringOption(o =>
             o.setName("color")
-                .setDescription("Embed color (#2b2d31).")
+                .setDescription("Embed color (#2b2d31)")
                 .setRequired(true)
         )
         .addStringOption(o =>
             o.setName("footer")
-                .setDescription("Footer text.")
+                .setDescription("Footer text")
                 .setRequired(true)
         )
         .addStringOption(o =>
             o.setName("footer_icon_source")
-                .setDescription("Footer icon source.")
+                .setDescription("Footer icon source")
                 .addChoices(
                     { name: "Server Icon", value: "server" },
                     { name: "Bot Profile", value: "bot" },
@@ -44,41 +41,38 @@ module.exports = {
         )
         .addRoleOption(o =>
             o.setName("mention_role")
-                .setDescription("Role to mention in the announcement")
+                .setDescription("Role to mention")
                 .setRequired(false)
         )
         .addUserOption(o =>
             o.setName("mention_user")
-                .setDescription("User to mention in the announcement")
+                .setDescription("User to mention")
                 .setRequired(false)
         )
-
-        // ======================
-        // OPTIONAL OPTIONS
-        // ======================
+        // ===== OPTIONAL EMBED 2 =====
         .addAttachmentOption(o =>
             o.setName("image")
-                .setDescription("Image for embed 1.")
+                .setDescription("Image for first embed")
                 .setRequired(false)
         )
         .addStringOption(o =>
             o.setName("title2")
-                .setDescription("Second embed title (optional).")
+                .setDescription("Second embed title (optional)")
                 .setRequired(false)
         )
         .addStringOption(o =>
             o.setName("description2")
-                .setDescription("Second embed description (optional).")
+                .setDescription("Second embed description (optional)")
                 .setRequired(false)
         )
         .addStringOption(o =>
             o.setName("footer2")
-                .setDescription("Second embed footer (optional).")
+                .setDescription("Second embed footer (optional)")
                 .setRequired(false)
         )
         .addStringOption(o =>
             o.setName("footer2_icon_source")
-                .setDescription("Footer icon for embed 2.")
+                .setDescription("Footer icon for second embed")
                 .addChoices(
                     { name: "Server Icon", value: "server" },
                     { name: "Bot Profile", value: "bot" },
@@ -88,7 +82,7 @@ module.exports = {
         )
         .addAttachmentOption(o =>
             o.setName("image2")
-                .setDescription("Second embed image (optional).")
+                .setDescription("Second embed image (optional)")
                 .setRequired(false)
         ),
 
@@ -104,21 +98,20 @@ module.exports = {
         const role = interaction.options.getRole("mention_role");
         const user = interaction.options.getUser("mention_user");
 
-        if (!validateHexColor(colorInput)) {
+        if (!validateHexColor(colorInput))
             return interaction.editReply("❌ Invalid HEX color! Use #rrggbb.");
-        }
 
         const color = colorInput.startsWith("#") ? colorInput : `#${colorInput}`;
 
-        let footerIcon =
+        const footerIcon =
             footerSource === "server" ? interaction.guild.iconURL() :
             footerSource === "bot" ? interaction.client.user.displayAvatarURL() :
             null;
 
         const embed1 = new EmbedBuilder()
-            .setColor(color)
             .setTitle(title)
             .setDescription(description)
+            .setColor(color)
             .setTimestamp()
             .setFooter({ text: footer, iconURL: footerIcon || undefined });
 
@@ -126,6 +119,7 @@ module.exports = {
 
         const embeds = [embed1];
 
+        // ===== Second Embed =====
         const title2 = interaction.options.getString("title2");
         const description2 = interaction.options.getString("description2");
         const footer2 = interaction.options.getString("footer2");
@@ -138,26 +132,24 @@ module.exports = {
             if (title2) embed2.setTitle(title2);
             if (description2) embed2.setDescription(description2);
 
-            let footer2Icon =
+            const footer2Icon =
                 footer2Source === "server" ? interaction.guild.iconURL() :
                 footer2Source === "bot" ? interaction.client.user.displayAvatarURL() :
                 null;
 
-            if (footer2)
-                embed2.setFooter({ text: footer2, iconURL: footer2Icon || undefined });
-
+            if (footer2) embed2.setFooter({ text: footer2, iconURL: footer2Icon || undefined });
             if (image2) embed2.setImage(image2.url);
 
             embeds.push(embed2);
         }
 
-        // Build mentions string
+        // ===== Mentions =====
         let mentions = "";
         if (role) mentions += `<@&${role.id}> `;
         if (user) mentions += `<@${user.id}>`;
 
         await interaction.channel.send({ content: mentions || null, embeds });
 
-        await interaction.editReply("<:utility12:1357261389399593004> Announcement sent!");
+        await interaction.editReply("<:utility12:1357261389399593004> Embed message sent!");
     }
 };
