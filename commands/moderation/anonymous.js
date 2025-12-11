@@ -4,10 +4,7 @@ const {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle
+    ButtonStyle
 } = require("discord.js");
 
 module.exports = {
@@ -19,25 +16,36 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true });
 
-        // Check if channel already exists
         let anonChannel = interaction.guild.channels.cache.find(
             ch => ch.name === "anonymous-chat"
         );
 
+        // Create channel if not exists
         if (!anonChannel) {
-            anonChannel = await interaction.guild.channels.create({
-                name: "anonymous-chat",
-                type: 0, // Text
-                permissionOverwrites: [
-                    {
-                        id: interaction.guild.roles.everyone.id,
-                        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory"]
-                    }
-                ]
-            });
+            try {
+                anonChannel = await interaction.guild.channels.create({
+                    name: "anonymous-chat",
+                    type: 0, // Text channel
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.roles.everyone.id,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory
+                            ]
+                        }
+                    ]
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.editReply({
+                    content: "❌ Failed to create anonymous-chat channel. Check bot permissions."
+                });
+            }
         }
 
-        // Embed setup
+        // Create embed + button
         const setupEmbed = new EmbedBuilder()
             .setColor(0x2b2d31)
             .setTitle("🔒 Anonymous Chat System")
@@ -58,10 +66,18 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        await anonChannel.send({ embeds: [setupEmbed], components: [row] });
+        // Send to channel with error handling
+        try {
+            await anonChannel.send({ embeds: [setupEmbed], components: [row] });
+        } catch (err) {
+            console.error(err);
+            return interaction.editReply({
+                content: "❌ Cannot send anonymous chat panel. Bot might lack permissions."
+            });
+        }
 
         await interaction.editReply({
-            content: `Anonymous system has been set up in ${anonChannel}.`
+            content: `Anonymous system has been set up in <#${anonChannel.id}>.`
         });
     }
 };

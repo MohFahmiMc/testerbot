@@ -84,15 +84,15 @@
     }
   },
   "translate": {
-    "total": 2,
+    "total": 3,
     "servers": {
-      "Scarily  | Chat Servers": 2
+      "Scarily  | Chat Servers": 3
     }
   },
   "setup-anonymous": {
-    "total": 1,
+    "total": 2,
     "servers": {
-      "Scarily  | Chat Servers": 1
+      "Scarily  | Chat Servers": 2
     }
   }
 }
