@@ -16,8 +16,7 @@ module.exports = {
         const activities = [
             () => `Developer ${developer}`,
             () => `Playing ${client.guilds.cache.size} Servers`,
-            () => `/help`,
-            () => `/invite`,
+            () => `/help • /invite •/support`,
         ];
 
         let i = 0;
