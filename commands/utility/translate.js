@@ -1,12 +1,9 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder,
-    PermissionFlagsBits
+    EmbedBuilder
 } = require("discord.js");
 
-const translate = require("@vitalets/google-translate-api");
-
-// Daftar bahasa ISO-639-1 (lengkap)
+const translate = require("google-translate-api-x");
 const languages = require("../../utils/languageList.json");
 
 module.exports = {
@@ -34,7 +31,6 @@ module.exports = {
         const to = interaction.options.getString("to").toLowerCase();
         const text = interaction.options.getString("text");
 
-        // Validasi bahasa
         if (from !== "auto" && !languages[from]) {
             return interaction.reply({
                 content: `Unknown source language code: **${from}**`,
@@ -51,22 +47,15 @@ module.exports = {
 
         await interaction.deferReply();
 
-        // Progress embed 1/2
-        const progressEmbed = new EmbedBuilder()
-            .setColor("#2b2d31")
-            .setTitle("Translating...")
-            .setDescription(`Progress: **1/2**\n\nTranslating your text…`)
-            .setTimestamp();
-
-        const msg = await interaction.editReply({ embeds: [progressEmbed] });
-
         try {
-            const result = await translate(text, { from, to });
+            const result = await translate(text, {
+                from: from === "auto" ? undefined : from,
+                to
+            });
 
-            // Progress embed 2/2
-            const doneEmbed = new EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setColor("#2b2d31")
-                .setTitle(" Translation Result")
+                .setTitle("🌍 Translation Result")
                 .addFields(
                     {
                         name: "From",
@@ -81,7 +70,7 @@ module.exports = {
                         inline: true
                     },
                     {
-                        name: "Original Text",
+                        name: "Original",
                         value: `\`\`\`\n${text}\n\`\`\``
                     },
                     {
@@ -95,14 +84,11 @@ module.exports = {
                     iconURL: interaction.user.displayAvatarURL()
                 });
 
-            await interaction.editReply({ embeds: [doneEmbed] });
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
             console.error(err);
-            return interaction.editReply({
-                content: "Failed to translate text.",
-                embeds: []
-            });
+            return interaction.editReply("❌ Translation failed. Try again later.");
         }
     }
 };

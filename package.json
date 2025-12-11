@@ -12,10 +12,10 @@
   "dependencies": {
     "@discordjs/builders": "^1.13.0",
     "@octokit/rest": "^22.0.1",
-    "@vitalets/google-translate-api": "^9.2.1",
     "axios": "^1.13.2",
     "discord.js": "^14.25.1",
     "dotenv": "^16.6.1",
+    "google-translate-api-x": "^10.7.2",
     "imgur": "^2.5.0",
     "moment": "^2.30.1",
     "ms": "^2.1.3",
