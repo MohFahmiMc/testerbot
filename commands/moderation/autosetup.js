@@ -4,6 +4,10 @@ const {
     PermissionFlagsBits
 } = require("discord.js");
 
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("serversetup")
@@ -11,9 +15,12 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        await interaction.deferReply();
+
+        // SAFE INTERACTION
+        await interaction.deferReply({ ephemeral: true });
 
         let progress = 0;
+
         const embed = new EmbedBuilder()
             .setColor(0x2b2d31)
             .setTitle("⚙️ Auto Setup Started")
@@ -22,46 +29,50 @@ module.exports = {
 
         await interaction.editReply({ embeds: [embed] });
 
-        async function setProgress(val, desc) {
+        async function updateProgress(val, desc) {
             progress = val;
             embed.setDescription(`${desc}\n\nProgress: **${progress}%**`);
             await interaction.editReply({ embeds: [embed] });
+            await wait(800); // prevent spam edits (important)
         }
 
         const guild = interaction.guild;
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━
-        // DELETE ALL CHANNELS
+        // DELETE CHANNELS
         // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(10, "🗑️ Deleting old channels...");
-        for (const ch of guild.channels.cache.values()) {
-            try { await ch.delete(); } catch {}
-        }
+        await updateProgress(10, "🗑️ Deleting old channels...");
+
+        await Promise.allSettled(
+            guild.channels.cache.map(ch => {
+                if (ch.id === interaction.channel.id) return; // prevent deleting interaction channel
+                return ch.delete().catch(() => {});
+            })
+        );
+
+        // Delay to allow Discord catching up
+        await wait(1500);
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━
         // DELETE ROLES
         // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(25, "🗑️ Deleting old roles...");
-        for (const role of guild.roles.cache.values()) {
-            if (role.name === "@everyone") continue;
-            try { await role.delete(); } catch {}
-        }
+        await updateProgress(25, "🗑️ Deleting old roles...");
+
+        await Promise.allSettled(
+            guild.roles.cache.map(role => {
+                if (role.name === "@everyone") return;
+                return role.delete().catch(() => {});
+            })
+        );
+
+        await wait(1000);
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━
         // CREATE ROLES
         // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(40, "🎭 Creating roles...");
+        await updateProgress(40, "🎭 Creating roles...");
 
-        const roleNames = [
-            "Owner",
-            "Co-Owner",
-            "Admin",
-            "Moderator",
-            "Member",
-            "Guest",
-            "Bot"
-        ];
-
+        const roleNames = ["Owner", "Co-Owner", "Admin", "Moderator", "Member", "Guest", "Bot"];
         const createdRoles = {};
 
         for (const r of roleNames) {
@@ -70,110 +81,67 @@ module.exports = {
                 color: null,
                 mentionable: true
             });
+            await wait(200);
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━
-        // CREATE TOP CATEGORIES
+        // CREATE CATEGORIES
         // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(55, "📂 Creating top categories...");
+        await updateProgress(55, "📂 Creating categories...");
 
-        const catAnnouncements = await guild.channels.create({
-            name: "📢 ANNOUNCEMENTS",
-            type: 4
-        });
+        const catAnnouncements = await guild.channels.create({ name: "📢 ANNOUNCEMENTS", type: 4 });
+        await wait(150);
 
-        const catUpdates = await guild.channels.create({
-            name: "📰 UPDATES",
-            type: 4
-        });
+        const catUpdates = await guild.channels.create({ name: "📰 UPDATES", type: 4 });
+        await wait(150);
 
-        const catRules = await guild.channels.create({
-            name: "📜 RULES",
-            type: 4
-        });
+        const catRules = await guild.channels.create({ name: "📜 RULES", type: 4 });
+        await wait(150);
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━
-        // CREATE NORMAL CATEGORIES
-        // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(70, "📁 Creating main categories...");
+        const catGeneral = await guild.channels.create({ name: "💬 GENERAL", type: 4 });
+        await wait(150);
 
-        const catGeneral = await guild.channels.create({
-            name: "💬 GENERAL",
-            type: 4
-        });
+        const catVoice = await guild.channels.create({ name: "🔊 VOICE", type: 4 });
+        await wait(150);
 
-        const catVoice = await guild.channels.create({
-            name: "🔊 VOICE",
-            type: 4
-        });
-
-        // ━━━━━━━━━━━━━━━━━━━━━━━━
-        // CREATE CHANNELS
-        // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(85, "📌 Creating channels...");
+        await updateProgress(70, "📁 Creating channels...");
 
         // ANNOUNCEMENTS
-        await guild.channels.create({
-            name: "announcement",
-            type: 0,
-            parent: catAnnouncements.id
-        });
+        await guild.channels.create({ name: "announcement", type: 0, parent: catAnnouncements.id });
+        await wait(100);
 
         // UPDATES
-        await guild.channels.create({
-            name: "updates",
-            type: 0,
-            parent: catUpdates.id
-        });
+        await guild.channels.create({ name: "updates", type: 0, parent: catUpdates.id });
+        await wait(100);
 
         // RULES
-        await guild.channels.create({
-            name: "rules",
-            type: 0,
-            parent: catRules.id
-        });
+        await guild.channels.create({ name: "rules", type: 0, parent: catRules.id });
+        await wait(100);
 
         // GENERAL
-        await guild.channels.create({
-            name: "general",
-            type: 0,
-            parent: catGeneral.id
-        });
+        await guild.channels.create({ name: "general", type: 0, parent: catGeneral.id });
+        await wait(100);
 
-        await guild.channels.create({
-            name: "commands",
-            type: 0,
-            parent: catGeneral.id
-        });
+        await guild.channels.create({ name: "commands", type: 0, parent: catGeneral.id });
+        await wait(100);
 
         // VOICE
-        await guild.channels.create({
-            name: "voice",
-            type: 2,
-            parent: catVoice.id
-        });
+        await guild.channels.create({ name: "voice", type: 2, parent: catVoice.id });
+        await wait(100);
 
-        await guild.channels.create({
-            name: "music",
-            type: 2,
-            parent: catVoice.id
-        });
+        await guild.channels.create({ name: "music", type: 2, parent: catVoice.id });
+        await wait(100);
 
-        await guild.channels.create({
-            name: "livestreaming",
-            type: 2,
-            parent: catVoice.id
-        });
+        await guild.channels.create({ name: "livestreaming", type: 2, parent: catVoice.id });
+        await wait(100);
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━
-        // DONE
-        // ━━━━━━━━━━━━━━━━━━━━━━━━
-        await setProgress(100, "✅ Auto setup completed!");
+        await updateProgress(100, "✅ Auto setup completed!");
 
+        // FINAL MESSAGE
         const finalEmbed = new EmbedBuilder()
             .setColor(0x2b2d31)
-            .setTitle("✅ Server Setup Completed")
-            .setDescription("The server has been rebuilt with a clean structure.")
+            .setTitle("🎉 Server Setup Completed")
+            .setDescription("Your server has been successfully configured.")
             .setTimestamp()
             .setFooter({
                 text: interaction.client.user.username,

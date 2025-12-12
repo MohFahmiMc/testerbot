@@ -94,5 +94,11 @@
     "servers": {
       "Scarily  | Chat Servers": 2
     }
+  },
+  "serversetup": {
+    "total": 1,
+    "servers": {
+      "DapidCh's server": 1
+    }
   }
 }
