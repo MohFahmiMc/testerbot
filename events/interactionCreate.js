@@ -2,9 +2,9 @@ const { PermissionsBitField, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-// =========================
+// ==============================
 // 📊 GLOBAL COMMAND STATS
-// =========================
+// ==============================
 const statsPath = path.join(__dirname, "../data/commandStats.json");
 
 function loadStats() {
@@ -30,14 +30,14 @@ function trackCommand(commandName, guildName) {
     saveStats(stats);
 }
 
-// =========================
+// ==============================
 // 🕵️ ANONYMOUS HANDLER
-// =========================
+// ==============================
 const anonymousHandler = require("../anonymousHandler");
 
-// =========================
-// 📌 MAIN FILE
-// =========================
+// ==============================
+// 📌 MAIN INTERACTION HANDLER
+// ==============================
 module.exports = {
     name: "interactionCreate",
 
@@ -48,56 +48,65 @@ module.exports = {
         // =========================================================
         if (interaction.isChatInputCommand()) {
 
-            // Track usage
             trackCommand(interaction.commandName, interaction.guild?.name);
 
             const command = client.commands.get(interaction.commandName);
+
             if (!command) {
-                return interaction.replied || interaction.deferred
-                    ? interaction.followUp({ content: "Command not found.", ephemeral: true })
-                    : interaction.reply({ content: "Command not found.", ephemeral: true });
+                return interaction.reply({
+                    content: "Command not found.",
+                    flags: 64 // ephemeral
+                });
             }
 
-            // 🔐 PERMISSION CHECK (moderation folder only)
+            // Permission check for moderation commands
             const filePath = command.filePath || "";
             if (filePath.includes("moderation")) {
                 if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
                     return interaction.reply({
                         content: "You need **Administrator** permission to use this command.",
-                        ephemeral: true
+                        flags: 64
                     });
                 }
             }
 
-            // 🧨 EXECUTE COMMAND
+            // Auto-defer untuk mencegah "Unknown Interaction (10062)"
+            try {
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferReply();
+                }
+            } catch (e) {
+                console.error("Defer error:", e);
+                return;
+            }
+
+            // Execute command
             try {
                 await command.execute(interaction, client);
 
             } catch (err) {
-                console.error(err);
+                console.error("Command Error:", err);
 
                 const embed = new EmbedBuilder()
                     .setTitle("<:utility8:1357261385947418644> Command Error")
+                    .setColor("#2b2d31")
                     .setDescription(
                         "An unexpected error occurred while executing this command.\n" +
-                        "Please join our support server for help:\n" +
-                        "[Support Server](https://discord.gg/FkvM362RJu)"
+                        "Need help? Join our support:\n" +
+                        "**[Support Server](https://discord.gg/FkvM362RJu)**"
                     )
-                    .setColor("#2b2d31")
-                    .setTimestamp()
-                    .setFooter({
-                        text: client.user.username,
-                        iconURL: client.user.displayAvatarURL()
-                    });
+                    .setTimestamp();
 
-                return interaction.replied || interaction.deferred
-                    ? interaction.followUp({ embeds: [embed], ephemeral: true })
-                    : interaction.reply({ embeds: [embed], ephemeral: true });
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed] });
+                } else {
+                    await interaction.reply({ embeds: [embed], flags: 64 });
+                }
             }
         }
 
         // =========================================================
-        // 🔹 ANONYMOUS SYSTEM (BUTTON + MODAL)
+        // 🔹 BUTTON / MODAL HANDLER (ANONYMOUS SYSTEM)
         // =========================================================
         if (interaction.isButton() || interaction.isModalSubmit()) {
             try {
