@@ -58,8 +58,9 @@ module.exports = {
                 });
             }
 
-            // Check admin permission on moderation folder
-            if (command.filePath && command.filePath.includes("moderation")) {
+            // Permission check
+            const filePath = command.filePath || "";
+            if (filePath.includes("moderation")) {
                 if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
                     return interaction.reply({
                         content: "You need **Administrator** permission to use this command.",
@@ -68,34 +69,42 @@ module.exports = {
                 }
             }
 
-            // =====================================================
-            // ❗ BIARKAN COMMAND HANDLE DEFER SENDIRI
-            // =====================================================
+            // AUTO DEFER — prevent 10062 error
+            try {
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferReply(); // SAFE
+                }
+            } catch (e) {
+                console.error("Defer error:", e);
+                return;
+            }
 
+            // EXECUTE COMMAND
             try {
                 await command.execute(interaction, client);
             } catch (err) {
                 console.error("Command Error:", err);
 
                 const embed = new EmbedBuilder()
-                    .setTitle("❌ Command Error")
+                    .setColor("#2b2d31")
+                    .setTitle("<:utility8:1357261385947418644> Command Error")
                     .setDescription(
-                        "An unexpected error occurred.\n" +
-                        "Need help? Join our support:\n" +
-                        "**https://discord.gg/FkvM362RJu**"
+                        "An unexpected error occurred while executing this command.\n" +
+                        "Please report this using **/report**."
                     )
-                    .setColor("#2b2d31");
+                    .setTimestamp();
 
-                if (!interaction.replied && !interaction.deferred) {
-                    return interaction.reply({ embeds: [embed], flags: 64 });
+                // Always editReply after defer
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed] });
                 } else {
-                    return interaction.editReply({ embeds: [embed] });
+                    await interaction.reply({ embeds: [embed], flags: 64 });
                 }
             }
         }
 
         // =========================================================
-        // 🔹 BUTTON / MODAL HANDLER (ANONYMOUS SYSTEM)
+        // 🔹 ANONYMOUS BUTTON / MODAL
         // =========================================================
         if (interaction.isButton() || interaction.isModalSubmit()) {
             try {

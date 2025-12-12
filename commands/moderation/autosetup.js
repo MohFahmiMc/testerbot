@@ -16,8 +16,8 @@ module.exports = {
 
     async execute(interaction) {
 
-        // SAFE DEFER (NO EPHEMERAL)
-        await interaction.deferReply({ flags: 64 });
+        // SAFE DEFER → ephemeral TRUE (bukan flags)
+        await interaction.deferReply({ ephemeral: true });
 
         let progress = 0;
 
@@ -29,46 +29,40 @@ module.exports = {
 
         await interaction.editReply({ embeds: [embed] });
 
-        async function updateProgress(val, desc) {
+        async function updateProgress(val, text) {
             progress = val;
-            embed.setDescription(`${desc}\n\nProgress: **${progress}%**`);
+            embed.setDescription(`${text}\n\nProgress: **${progress}%**`);
             await interaction.editReply({ embeds: [embed] });
-            await wait(600); // Prevent API spam (important)
+            await wait(500); // Anti spam API
         }
 
         const guild = interaction.guild;
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // DELETE CHANNELS
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         await updateProgress(10, "🗑️ Deleting old channels...");
 
         await Promise.allSettled(
             guild.channels.cache.map(ch => {
-                if (ch.id === interaction.channel.id) return; // Keep interaction channel
+                if (ch.id === interaction.channel.id) return;
                 return ch.delete().catch(() => {});
             })
         );
 
-        await wait(1200);
+        await wait(1000);
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // DELETE ROLES
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         await updateProgress(25, "🗑️ Deleting old roles...");
 
         await Promise.allSettled(
-            guild.roles.cache.map(role => {
-                if (role.name === "@everyone") return;
-                return role.delete().catch(() => {});
+            guild.roles.cache.map(r => {
+                if (r.name === "@everyone") return;
+                return r.delete().catch(() => {});
             })
         );
 
-        await wait(800);
+        await wait(600);
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // CREATE ROLES
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         await updateProgress(40, "🎭 Creating roles...");
 
         const roleNames = ["Owner", "Co-Owner", "Admin", "Moderator", "Member", "Guest", "Bot"];
@@ -77,22 +71,20 @@ module.exports = {
         for (const r of roleNames) {
             createdRoles[r] = await guild.roles.create({
                 name: r,
-                color: null,
                 mentionable: true
-            });
-            await wait(180);
+            }).catch(() => null);
+
+            await wait(150);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // CREATE CATEGORIES
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
         await updateProgress(55, "📂 Creating categories...");
 
         const catAnnouncements = await guild.channels.create({ name: "📢 ANNOUNCEMENTS", type: 4 });
-        const catUpdates = await guild.channels.create({ name: "📰 UPDATES", type: 4 });
-        const catRules = await guild.channels.create({ name: "📜 RULES", type: 4 });
-        const catGeneral = await guild.channels.create({ name: "💬 GENERAL", type: 4 });
-        const catVoice = await guild.channels.create({ name: "🔊 VOICE", type: 4 });
+        const catUpdates      = await guild.channels.create({ name: "📰 UPDATES", type: 4 });
+        const catRules        = await guild.channels.create({ name: "📜 RULES", type: 4 });
+        const catGeneral      = await guild.channels.create({ name: "💬 GENERAL", type: 4 });
+        const catVoice        = await guild.channels.create({ name: "🔊 VOICE", type: 4 });
 
         await wait(300);
 
@@ -118,9 +110,7 @@ module.exports = {
 
         await updateProgress(100, "✅ Auto setup completed!");
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // FINAL MESSAGE
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // FINAL EMBED
         const finalEmbed = new EmbedBuilder()
             .setColor(0x2b2d31)
             .setTitle("🎉 Server Setup Completed")
