@@ -100,5 +100,11 @@
     "servers": {
       "DapidCh's server": 4
     }
+  },
+  "copyserver": {
+    "total": 1,
+    "servers": {
+      "DapidCh's server": 1
+    }
   }
 }

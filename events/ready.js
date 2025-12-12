@@ -1,5 +1,5 @@
 module.exports = {
-    name: "ready",
+    name: "clientReady",
     once: true,
     async execute(client) {
         const developer = process.env.GH_OWNER || "Unknown Developer";

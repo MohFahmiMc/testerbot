@@ -51,7 +51,6 @@ module.exports = {
             trackCommand(interaction.commandName, interaction.guild?.name);
 
             const command = client.commands.get(interaction.commandName);
-
             if (!command) {
                 return interaction.reply({
                     content: "Command not found.",
@@ -59,9 +58,8 @@ module.exports = {
                 });
             }
 
-            // Permission check (Moderation commands)
-            const filePath = command.filePath || "";
-            if (filePath.includes("moderation")) {
+            // Check admin permission on moderation folder
+            if (command.filePath && command.filePath.includes("moderation")) {
                 if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
                     return interaction.reply({
                         content: "You need **Administrator** permission to use this command.",
@@ -71,42 +69,27 @@ module.exports = {
             }
 
             // =====================================================
-            // ⭐ FIX TERPENTING → HINDARI DOUBLE-DEFER
-            //    Commands seperti /serversetup SUDAH defer sendiri
+            // ❗ BIARKAN COMMAND HANDLE DEFER SENDIRI
             // =====================================================
-            const commandHandlesDefer = command.handlesDefer || false;
 
-            if (!commandHandlesDefer) {
-                try {
-                    if (!interaction.deferred && !interaction.replied) {
-                        await interaction.deferReply({ ephemeral: false });
-                    }
-                } catch (e) {
-                    console.error("Defer error:", e);
-                }
-            }
-
-            // Execute command
             try {
                 await command.execute(interaction, client);
-
             } catch (err) {
                 console.error("Command Error:", err);
 
                 const embed = new EmbedBuilder()
-                    .setTitle("<:utility8:1357261385947418644> Command Error")
-                    .setColor("#2b2d31")
+                    .setTitle("❌ Command Error")
                     .setDescription(
-                        "An unexpected error occurred while executing this command.\n" +
+                        "An unexpected error occurred.\n" +
                         "Need help? Join our support:\n" +
-                        "**[Support Server](https://discord.gg/FkvM362RJu)**"
+                        "**https://discord.gg/FkvM362RJu**"
                     )
-                    .setTimestamp();
+                    .setColor("#2b2d31");
 
-                if (interaction.deferred) {
-                    await interaction.editReply({ embeds: [embed] });
+                if (!interaction.replied && !interaction.deferred) {
+                    return interaction.reply({ embeds: [embed], flags: 64 });
                 } else {
-                    await interaction.reply({ embeds: [embed], flags: 64 });
+                    return interaction.editReply({ embeds: [embed] });
                 }
             }
         }
