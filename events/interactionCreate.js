@@ -55,11 +55,11 @@ module.exports = {
             if (!command) {
                 return interaction.reply({
                     content: "Command not found.",
-                    flags: 64 // ephemeral
+                    flags: 64
                 });
             }
 
-            // Permission check for moderation commands
+            // Permission check (Moderation commands)
             const filePath = command.filePath || "";
             if (filePath.includes("moderation")) {
                 if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
@@ -70,14 +70,20 @@ module.exports = {
                 }
             }
 
-            // Auto-defer untuk mencegah "Unknown Interaction (10062)"
-            try {
-                if (!interaction.deferred && !interaction.replied) {
-                    await interaction.deferReply();
+            // =====================================================
+            // ⭐ FIX TERPENTING → HINDARI DOUBLE-DEFER
+            //    Commands seperti /serversetup SUDAH defer sendiri
+            // =====================================================
+            const commandHandlesDefer = command.handlesDefer || false;
+
+            if (!commandHandlesDefer) {
+                try {
+                    if (!interaction.deferred && !interaction.replied) {
+                        await interaction.deferReply({ ephemeral: false });
+                    }
+                } catch (e) {
+                    console.error("Defer error:", e);
                 }
-            } catch (e) {
-                console.error("Defer error:", e);
-                return;
             }
 
             // Execute command
